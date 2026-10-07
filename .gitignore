@@ -3,3 +3,6 @@ dist
 .env
 .DS_Store
 server/generated
+
+# Supabase CLI local state
+supabase/.temp
