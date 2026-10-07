@@ -1,3 +1,4 @@
+import { setDefaultResultOrder } from "node:dns";
 import express from "express";
 import { requireAuth, requireProfile } from "./auth";
 import { errorHandler } from "./errors";
@@ -5,6 +6,10 @@ import { arcRouter } from "./routes/arc";
 import { authRouter } from "./routes/auth";
 import { avatarRouter } from "./routes/avatars";
 import { socialRouter } from "./routes/social";
+
+// Some networks hand out IPv6 routes to Supabase that time out, which would
+// make token checks fail at random. Trying IPv4 first avoids that.
+setDefaultResultOrder("ipv4first");
 
 const app = express();
 // Roomy enough for a profile photo sent as a base64 data URL.
