@@ -1,5 +1,5 @@
 {
-  "name": "arc-tracker",
+  "name": "wintarc",
   "private": true,
   "workspaces": [
     "client",
