@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorNote, Logo } from '../components/ArcParts'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { signInWithGoogle, supabase } from '../supabase'
 
 const COPY = {
@@ -55,6 +56,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
+      <ThemeToggle className="fixed top-5 right-6" />
       <Logo />
       <h1 className="mt-8 text-[28px] font-semibold tracking-[-0.03em]">{copy.title}</h1>
       <p className="mt-2 text-muted">Daily goals, streaks and friends for your arc.</p>

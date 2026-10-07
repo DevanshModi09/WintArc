@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import type { User } from '../api'
 import { supabase } from '../supabase'
-import { currentTheme, setTheme } from '../theme'
+import { ThemeToggle } from './ThemeToggle'
 import { Logo } from './ArcParts'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -11,13 +11,6 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 export function Layout({ user }: { user: User }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [theme, setThemeState] = useState(currentTheme)
-
-  function toggleTheme() {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
-    setThemeState(next)
-  }
 
   function search(e: FormEvent) {
     e.preventDefault()
@@ -53,9 +46,7 @@ export function Layout({ user }: { user: User }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </form>
-        <button className="text-muted hover:text-fg" onClick={toggleTheme}>
-          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-        </button>
+        <ThemeToggle />
         <button className="text-muted hover:text-fg" onClick={() => supabase.auth.signOut()}>
           Sign out
         </button>
