@@ -6,24 +6,20 @@
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "prisma generate && tsc --noEmit",
     "start": "tsx --env-file=.env src/index.ts",
-    "db:push": "prisma db push",
+    "db:push": "prisma db push && prisma db execute --file prisma/rls.sql",
     "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "bcryptjs": "^3.0.3",
-    "cookie-parser": "^1.4.7",
+    "@supabase/supabase-js": "^2.117.2",
     "dotenv": "^18.0.6",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.19.1",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",

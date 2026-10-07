@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import { currentArc } from "../arcs";
-import { requireAuth } from "../auth";
 import { addDays, parseToday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
@@ -59,7 +58,6 @@ async function ownedGoal(userId: string, goalId: string) {
 }
 
 export const arcRouter = Router();
-arcRouter.use(requireAuth);
 
 arcRouter.get("/arc", async (req, res) => {
   res.json(await arcResponse(res.locals.userId, parseToday(req.query.today)));

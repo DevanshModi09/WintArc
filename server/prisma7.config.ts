@@ -9,6 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Schema changes need Supabase's direct connection, not the pooled one.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

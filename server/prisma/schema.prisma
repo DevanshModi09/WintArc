@@ -7,12 +7,13 @@ datasource db {
   provider = "postgresql"
 }
 
+// The id is the Supabase auth user id, so there is no password here:
+// signing in is handled entirely by Supabase.
 model User {
-  id           String   @id @default(cuid())
+  id           String   @id
   email        String   @unique
   username     String   @unique
   name         String
-  passwordHash String
   createdAt    DateTime @default(now())
   arcs         Arc[]
   sentRequests     Friendship[] @relation("requester")

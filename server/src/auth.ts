@@ -1,37 +1,41 @@
-import type { RequestHandler, Response } from "express";
-import jwt from "jsonwebtoken";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { RequestHandler } from "express";
+import { prisma } from "./db";
 import { HttpError } from "./errors";
 
-const COOKIE = "arc_session";
-const MAX_AGE_DAYS = 30;
+let client: SupabaseClient | undefined;
 
-function secret(): string {
-  const value = process.env.JWT_SECRET;
-  if (!value) throw new Error("JWT_SECRET is not set");
-  return value;
+function supabase(): SupabaseClient {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY must be set");
+  client ??= createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  return client;
 }
 
-export function startSession(res: Response, userId: string) {
-  const token = jwt.sign({ sub: userId }, secret(), { expiresIn: `${MAX_AGE_DAYS}d` });
-  res.cookie(COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: MAX_AGE_DAYS * 86_400_000,
-  });
-}
+// Verifies the Supabase access token sent as "Authorization: Bearer <token>".
+// Sign-in itself (Google) happens in the browser, straight against Supabase.
+export const requireAuth: RequestHandler = async (req, res, next) => {
+  const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+  if (!token) throw new HttpError(401, "Not signed in");
+  // getClaims checks the signature and expiry; it throws on a malformed token.
+  const claims = await supabase()
+    .auth.getClaims(token)
+    .then(({ data, error }) => (error ? null : data?.claims))
+    .catch(() => null);
+  if (!claims?.sub) throw new HttpError(401, "Not signed in");
 
-export function endSession(res: Response) {
-  res.clearCookie(COOKIE);
-}
+  const { sub, email, user_metadata } = claims;
+  res.locals.authId = sub;
+  res.locals.email = email;
+  res.locals.suggestedName = user_metadata?.full_name ?? user_metadata?.name ?? "";
+  next();
+};
 
-export const requireAuth: RequestHandler = (req, res, next) => {
-  try {
-    const payload = jwt.verify(req.cookies?.[COOKIE] ?? "", secret());
-    if (typeof payload === "string" || !payload.sub) throw new Error("bad token");
-    res.locals.userId = payload.sub;
-    next();
-  } catch {
-    next(new HttpError(401, "Not signed in"));
-  }
+// A signed-in person only becomes a WintArc user once they've picked a username.
+export const requireProfile: RequestHandler = async (_req, res, next) => {
+  const user = await prisma.user.findUnique({ where: { id: res.locals.authId }, select: { id: true } });
+  if (!user) throw new HttpError(403, "Finish setting up your profile first");
+  res.locals.userId = user.id;
+  next();
 };

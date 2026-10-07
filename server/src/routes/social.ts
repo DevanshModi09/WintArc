@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import { currentArc } from "../arcs";
-import { requireAuth } from "../auth";
 import { parseToday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
@@ -41,7 +40,6 @@ async function arcSummary(userId: string, today: string) {
 }
 
 export const socialRouter = Router();
-socialRouter.use(requireAuth);
 
 socialRouter.get("/users", async (req, res) => {
   const q = z.string().trim().min(2, "Type at least 2 characters").max(40).parse(req.query.q);
