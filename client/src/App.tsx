@@ -1,29 +1,77 @@
+import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { api, type User } from './api'
-import { AuthScreen } from './components/AuthScreen'
-import { Dashboard } from './components/Dashboard'
+import { ErrorNote } from './components/ArcParts'
+import { Layout } from './components/Layout'
+import { AuthPage } from './pages/AuthPage'
+import { Friends } from './pages/Friends'
+import { Onboarding } from './pages/Onboarding'
+import { Profile } from './pages/Profile'
+import { Today } from './pages/Today'
+import { supabase } from './supabase'
 
 export default function App() {
-  // undefined = still checking the session
-  const [user, setUser] = useState<User | null | undefined>(undefined)
+  // undefined = still restoring the session
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) return null
+
+  return (
+    <BrowserRouter>
+      {session ? (
+        <SignedIn key={session.user.id} />
+      ) : (
+        <Routes>
+          <Route path="/login" element={<AuthPage mode="login" />} />
+          <Route path="/signup" element={<AuthPage mode="signup" />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      )}
+    </BrowserRouter>
+  )
+}
+
+function SignedIn() {
+  const [me, setMe] = useState<{ user: User | null; suggestedName: string }>()
+  const [error, setError] = useState('')
 
   useEffect(() => {
     api
       .me()
-      .then((res) => setUser(res.user))
-      .catch(() => setUser(null))
+      .then(setMe)
+      .catch((err: Error) => setError(err.message))
   }, [])
 
-  if (user === undefined) return null
-  if (user === null) return <AuthScreen onAuth={setUser} />
+  if (error) {
+    return (
+      <main className="mx-auto max-w-sm space-y-4 px-6 py-24">
+        <ErrorNote message={error} />
+        <button className="btn-outline w-full" onClick={() => supabase.auth.signOut()}>
+          Sign out
+        </button>
+      </main>
+    )
+  }
+  if (!me) return null
+  if (!me.user) {
+    return <Onboarding suggestedName={me.suggestedName} onDone={(user) => setMe({ ...me, user })} />
+  }
 
   return (
-    <Dashboard
-      user={user}
-      onLogout={async () => {
-        await api.logout()
-        setUser(null)
-      }}
-    />
+    <Routes>
+      <Route element={<Layout user={me.user} />}>
+        <Route index element={<Today />} />
+        <Route path="friends" element={<Friends />} />
+        <Route path="u/:username" element={<Profile />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
   )
 }
