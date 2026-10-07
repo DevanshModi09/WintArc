@@ -112,6 +112,8 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
     endDate: arc.endDate,
     totalDays: diffDays(arc.startDate, arc.endDate) + 1,
     dayNumber: dates.length,
+    // Days until the arc begins; 0 once it has started.
+    startsIn: Math.max(0, diffDays(today, arc.startDate)),
     isOver: today > arc.endDate,
     streak,
     perfectDays,

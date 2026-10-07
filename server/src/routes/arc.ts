@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { currentArc } from "../arcs";
-import { addDays, parseToday } from "../dates";
+import { ARC_DAYS, addDays, parseToday, seasonStart } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
@@ -21,7 +21,6 @@ const trackSchema = z.object({
 
 const createArcSchema = z.object({
   name: z.string().trim().min(1, "Give your arc a name").max(60),
-  days: z.number().int().min(7).max(365),
   tracks: z
     .array(
       trackSchema.extend({
@@ -65,18 +64,21 @@ arcRouter.get("/arc", async (req, res) => {
 
 arcRouter.post("/arc", async (req, res) => {
   const today = parseToday(req.body?.today);
-  const { name, days, tracks } = createArcSchema.parse(req.body);
+  const { name, tracks } = createArcSchema.parse(req.body);
+  const startDate = seasonStart(today);
+  // Someone joining mid-arc isn't marked as missing the days before they joined.
+  const startsOn = today > startDate ? today : startDate;
   await prisma.arc.create({
     data: {
       userId: res.locals.userId,
       name,
-      startDate: today,
-      endDate: addDays(today, days - 1),
+      startDate,
+      endDate: addDays(startDate, ARC_DAYS - 1),
       tracks: {
         create: tracks.map((t) => ({
           name: t.name,
           isPublic: t.isPublic,
-          goals: { create: t.goals.map((g) => ({ ...g, startsOn: today })) },
+          goals: { create: t.goals.map((g) => ({ ...g, startsOn })) },
         })),
       },
     },
@@ -140,7 +142,7 @@ arcRouter.put("/goals/:id/checkin", async (req, res) => {
   const goal = await ownedGoal(res.locals.userId, req.params.id);
   const { arc } = goal.track;
   if (today < arc.startDate || today > arc.endDate) {
-    throw new HttpError(400, "This arc isn't active today");
+    throw new HttpError(400, today < arc.startDate ? "Your arc hasn't started yet" : "This arc is over");
   }
   if (done) {
     await prisma.checkIn.upsert({

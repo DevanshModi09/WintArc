@@ -22,6 +22,16 @@ export function diffDays(from: string, to: string): number {
   return Math.round((toUtc(to).getTime() - toUtc(from).getTime()) / 86_400_000);
 }
 
+export const ARC_DAYS = 90;
+
+// Everyone's arc runs on the same calendar: 90 days from 1 November.
+// Returns the start of the arc that is running on `today`, or else the next one.
+export function seasonStart(today: string): string {
+  const year = Number(today.slice(0, 4));
+  const previous = `${year - 1}-11-01`;
+  return today <= addDays(previous, ARC_DAYS - 1) ? previous : `${year}-11-01`;
+}
+
 // The client tells us its local date. Any real timezone is within one
 // calendar day of UTC, so anything further off is rejected.
 export function parseToday(value: unknown): string {
