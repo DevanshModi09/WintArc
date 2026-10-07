@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  arcs         Arc[]
+  sentRequests     Friendship[] @relation("requester")
+  receivedRequests Friendship[] @relation("addressee")
+}
+
+// Dates are stored as "YYYY-MM-DD" strings in the user's local calendar,
+// so a "day" means the same thing regardless of server timezone.
+model Arc {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  startDate String
+  endDate   String
+  createdAt DateTime @default(now())
+  tracks    Track[]
+
+  @@index([userId, createdAt])
+}
+
+// A track is one vertical inside an arc: "Web Dev", "DSA", "Badminton".
+// Private tracks are only ever shown to their owner.
+model Track {
+  id        String   @id @default(cuid())
+  arcId     String
+  arc       Arc      @relation(fields: [arcId], references: [id], onDelete: Cascade)
+  name      String
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  goals     Goal[]
+
+  @@index([arcId])
+}
+
+model Goal {
+  id        String    @id @default(cuid())
+  trackId   String
+  track     Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  title     String
+  emoji     String?
+  startsOn  String
+  createdAt DateTime  @default(now())
+  checkIns  CheckIn[]
+
+  @@index([trackId])
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  date      String
+  createdAt DateTime @default(now())
+
+  @@unique([goalId, date])
+}
+
+// One row per pair of users. It is a pending request until accepted.
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  requester   User     @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String
+  addressee   User     @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  accepted    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId])
+}
