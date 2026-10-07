@@ -5,8 +5,8 @@ import { parseToday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
+import { publicUserSelect, toPublicUser } from "../users";
 
-const publicUser = { id: true, name: true, username: true } as const;
 
 type Relation = "self" | "friends" | "incoming" | "outgoing" | "none";
 
@@ -35,8 +35,8 @@ async function relationTo(me: string, other: string) {
 async function arcSummary(userId: string, today: string) {
   const arc = await currentArc(userId);
   if (!arc) return null;
-  const { name, dayNumber, totalDays, isOver, streak, level, xp, today: progress } = buildArcView(arc, today);
-  return { name, dayNumber, totalDays, isOver, streak, level, xp, today: progress };
+  const { name, dayNumber, totalDays, startsIn, isOver, streak, level, xp, today: progress } = buildArcView(arc, today);
+  return { name, dayNumber, totalDays, startsIn, isOver, streak, level, xp, today: progress };
 }
 
 export const socialRouter = Router();
@@ -51,12 +51,12 @@ socialRouter.get("/users", async (req, res) => {
         { name: { contains: q, mode: "insensitive" } },
       ],
     },
-    select: publicUser,
+    select: publicUserSelect,
     orderBy: { username: "asc" },
     take: 10,
   });
   res.json({
-    users: await Promise.all(users.map(async (u) => ({ ...u, ...(await relationTo(res.locals.userId, u.id)) }))),
+    users: await Promise.all(users.map(async (u) => ({ ...toPublicUser(u), ...(await relationTo(res.locals.userId, u.id)) }))),
   });
 });
 
@@ -65,13 +65,13 @@ socialRouter.get("/users/:username", async (req, res) => {
   const today = parseToday(req.query.today);
   const user = await prisma.user.findUnique({
     where: { username: req.params.username.toLowerCase() },
-    select: { ...publicUser, createdAt: true },
+    select: { ...publicUserSelect, createdAt: true },
   });
   if (!user) throw new HttpError(404, "User not found");
   const isSelf = user.id === res.locals.userId;
   const arc = await currentArc(user.id);
   res.json({
-    user,
+    user: toPublicUser(user),
     ...(await relationTo(res.locals.userId, user.id)),
     arc: arc ? buildArcView(arc, today, { publicOnly: !isSelf }) : null,
   });
@@ -82,7 +82,7 @@ socialRouter.get("/friends", async (req, res) => {
   const me: string = res.locals.userId;
   const rows = await prisma.friendship.findMany({
     where: { OR: [{ requesterId: me }, { addresseeId: me }] },
-    include: { requester: { select: publicUser }, addressee: { select: publicUser } },
+    include: { requester: { select: publicUserSelect }, addressee: { select: publicUserSelect } },
     orderBy: { createdAt: "desc" },
   });
   const other = (f: (typeof rows)[number]) => (f.requesterId === me ? f.addressee : f.requester);
@@ -90,15 +90,19 @@ socialRouter.get("/friends", async (req, res) => {
   const friends = await Promise.all(
     rows
       .filter((f) => f.accepted)
-      .map(async (f) => ({ friendshipId: f.id, user: other(f), arc: await arcSummary(other(f).id, today) })),
+      .map(async (f) => ({
+        friendshipId: f.id,
+        user: toPublicUser(other(f)),
+        arc: await arcSummary(other(f).id, today),
+      })),
   );
   friends.sort((a, b) => (b.arc?.streak.current ?? -1) - (a.arc?.streak.current ?? -1));
 
   const pending = rows.filter((f) => !f.accepted);
   res.json({
     friends,
-    incoming: pending.filter((f) => f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: f.requester })),
-    outgoing: pending.filter((f) => f.requesterId === me).map((f) => ({ friendshipId: f.id, user: f.addressee })),
+    incoming: pending.filter((f) => f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: toPublicUser(f.requester) })),
+    outgoing: pending.filter((f) => f.requesterId === me).map((f) => ({ friendshipId: f.id, user: toPublicUser(f.addressee) })),
   });
 });
 

@@ -14,6 +14,9 @@ model User {
   email        String   @unique
   username     String   @unique
   name         String
+  // A small JPEG the browser has already cropped and resized.
+  avatar          Bytes?
+  avatarUpdatedAt DateTime?
   createdAt    DateTime @default(now())
   arcs         Arc[]
   sentRequests     Friendship[] @relation("requester")
