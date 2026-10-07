@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-night: #060a13;
+  --color-ice: #7dd3fc;
+  --color-frost: #e0f2fe;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--color-frost);
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, rgb(56 189 248 / 0.16), transparent 70%),
+    var(--color-night);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-white/10 bg-white/[0.04] p-5;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-frost placeholder:text-white/30 outline-none focus:border-ice/60;
+  }
+  .btn {
+    @apply cursor-pointer rounded-xl bg-ice px-4 py-3 font-semibold text-night transition hover:bg-frost disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .label {
+    @apply text-xs font-medium tracking-widest text-white/40 uppercase;
+  }
+}
