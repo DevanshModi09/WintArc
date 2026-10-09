@@ -5,10 +5,16 @@ import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
 import { publicUserSelect, toPublicUser } from "../users";
+import { profileFor } from "./social";
 
-// The one part of the API that needs no sign-in: the commitment page someone
-// has chosen to share. It only ever shows their public tracks.
+// The part of the API that needs no sign-in: anyone's profile, and the
+// commitment page someone has chosen to share. Both only ever show public
+// tracks.
 export const publicRouter = Router();
+
+publicRouter.get("/profile/:username", async (req, res) => {
+  res.json(await profileFor(req.params.username, null, parseToday(req.query.today)));
+});
 
 publicRouter.get("/:username", async (req, res) => {
   const today = parseToday(req.query.today);

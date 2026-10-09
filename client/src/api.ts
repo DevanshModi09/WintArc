@@ -82,7 +82,8 @@ export type ArcSummary = Pick<
   'name' | 'dayNumber' | 'totalDays' | 'startsIn' | 'isOver' | 'streak' | 'level' | 'xp' | 'today'
 >
 
-export type Relation = 'self' | 'friends' | 'incoming' | 'outgoing' | 'none'
+// 'guest' is someone looking at a profile without being signed in.
+export type Relation = 'self' | 'friends' | 'incoming' | 'outgoing' | 'none' | 'guest'
 export type RelationInfo = { relation: Relation; friendshipId: string | null }
 
 export type ProfileDetails = { bio: string | null; stack: string[]; location: string | null; link: string | null }
@@ -237,6 +238,9 @@ export const api = {
     request<{ users: (PublicUser & RelationInfo)[] }>('GET', `/users?q=${encodeURIComponent(q)}`),
   getProfile: (username: string) =>
     request<Profile>('GET', `/users/${encodeURIComponent(username)}?today=${today()}`),
+  // The same page for someone who isn't signed in.
+  getGuestProfile: (username: string) =>
+    request<Profile>('GET', `/public/profile/${encodeURIComponent(username)}?today=${today()}`),
   getSurvivors: () => request<Survivors>('GET', `/survivors?today=${today()}`),
   getFeed: () => request<{ entries: FeedEntry[] }>('GET', `/feed?today=${today()}`),
   getCommitment: (username: string) =>

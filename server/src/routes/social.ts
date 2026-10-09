@@ -77,21 +77,24 @@ socialRouter.get("/users", async (req, res) => {
 });
 
 // Anyone signed in can view a profile, but only its public tracks.
-socialRouter.get("/users/:username", async (req, res) => {
-  const today = parseToday(req.query.today);
-  const user = await prisma.user.findUnique({
-    where: { username: req.params.username.toLowerCase() },
-    select: profileSelect,
-  });
+// Someone's profile as `viewer` sees it. A viewer of null is a guest who
+// isn't signed in: they get what any stranger with an account would, which
+// is the public tracks and never a photo.
+export async function profileFor(username: string, viewer: string | null, today: string) {
+  const user = await prisma.user.findUnique({ where: { username: username.toLowerCase() }, select: profileSelect });
   if (!user) throw new HttpError(404, "User not found");
-  const isSelf = user.id === res.locals.userId;
+  const isSelf = user.id === viewer;
   const [arc, ...older] = await allArcs(user.id);
-  res.json({
+  return {
     user: toPublicUser(user),
-    ...(await relationTo(res.locals.userId, user.id)),
+    ...(viewer ? await relationTo(viewer, user.id) : { relation: "guest" as const, friendshipId: null }),
     arc: arc ? buildArcView(arc, today, { publicOnly: !isSelf }) : null,
     pastArcs: older.map((a) => pastArc(a, today)),
-  });
+  };
+}
+
+socialRouter.get("/users/:username", async (req, res) => {
+  res.json(await profileFor(req.params.username, res.locals.userId, parseToday(req.query.today)));
 });
 
 socialRouter.get("/friends", async (req, res) => {

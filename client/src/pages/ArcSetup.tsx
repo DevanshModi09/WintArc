@@ -40,7 +40,6 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   // The arc can begin today or any later day the season still allows.
   const [first] = useState(today)
   const [startDate, setStartDate] = useState(first)
-  const starts = startPhrase(startDate, first)
   // No wandering off to other pages halfway through.
   useFocusedLayout()
 
@@ -72,7 +71,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   return (
     <>
       <AnimatePresence>
-        {pledging && <Pledge tracks={tracks} starts={starts} ends={longDate(season.endDate)} days={daysBetween(startDate, season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
+        {pledging && <Pledge tracks={tracks} season={season} first={first} startDate={startDate} onStartDate={setStartDate} onConfirm={create} onCancel={() => setPledging(false)} />}
       </AnimatePresence>
       <form onSubmit={submit} className="space-y-8">
         <header className="max-w-[640px]">
@@ -89,12 +88,9 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="min-w-0 space-y-8">
             <section className="space-y-3">
-              <h2 className="h2">Start arc from</h2>
-              <StartPicker value={startDate} onChange={setStartDate} first={first} last={season.lastStart} />
               <p className="label">
-                Your arc starts {starts} and ends on {longDate(season.endDate)}, like everyone's:{' '}
-                {daysBetween(startDate, season.endDate)} days. The last day to start is {longDate(season.lastStart)}.
-                {startDate !== first && ' Until it starts there is nothing to check in, and once created the start day is final.'}
+                Your arc ends on {longDate(season.endDate)}, like everyone's. You pick the day it starts at the last step:
+                today, or any day up to {longDate(season.lastStart)}.
               </p>
             </section>
 
@@ -259,18 +255,29 @@ const PLEDGE = 'i will not back off'
 
 // What someone agrees to, a line at a time, before they see the pledge.
 const TERMS = [
-  "My arc starts {starts} and runs until {ends}. I can't pause it, move the start or end it early.",
+  "My arc runs until {ends}. Once it's created I can't pause it, move its start day or end it early.",
   'Every day a track runs, I commit with a message and a photo of the work. No commit means the day is missed, and one missed day takes me off the board.',
   "My tracks and their checkpoints are final. I can add more later, but I can't remove or change them.",
   "I've planned for my worst week, not my best. I can find {weekly} every week, even when I'm tired, busy or not in the mood.",
 ]
 
-type PledgeProps = { tracks: NewTrack[]; starts: string; ends: string; days: number; onConfirm: () => void; onCancel: () => void }
+type PledgeProps = {
+  tracks: NewTrack[]
+  season: Season
+  first: string
+  startDate: string
+  onStartDate: (date: string) => void
+  onConfirm: () => void
+  onCancel: () => void
+}
 
 // The last thing before an arc exists, in two steps. First the terms, each
 // ticked off by hand. Then what's being decided, a nudge to keep it
 // realistic, and a line to type out so nobody commits by accident.
-function Pledge({ tracks, starts, ends, days, onConfirm, onCancel }: PledgeProps) {
+function Pledge({ tracks, season, first, startDate, onStartDate, onConfirm, onCancel }: PledgeProps) {
+  const ends = longDate(season.endDate)
+  const starts = startPhrase(startDate, first)
+  const days = daysBetween(startDate, season.endDate)
   const [typed, setTyped] = useState('')
   // Capitals and stray spaces don't matter; the words do.
   const matches = typed.trim().replace(/\s+/g, ' ').toLowerCase() === PLEDGE
@@ -367,7 +374,7 @@ function Pledge({ tracks, starts, ends, days, onConfirm, onCancel }: PledgeProps
                         checked={agreed[i]}
                         onChange={(e) => setAgreed(agreed.map((a, j) => (j === i ? e.target.checked : a)))}
                       />
-                      <span>{term.replace('{starts}', starts).replace('{ends}', ends).replace('{weekly}', hours(weekly))}</span>
+                      <span>{term.replace('{ends}', ends).replace('{weekly}', hours(weekly))}</span>
                     </label>
                   </li>
                 ))}
@@ -443,6 +450,15 @@ function Pledge({ tracks, starts, ends, days, onConfirm, onCancel }: PledgeProps
                   <dd className="mt-1 font-medium">Delete a track, or change its checkpoints</dd>
                 </div>
               </dl>
+
+              <section className="space-y-2">
+                <h3 className="font-medium">When do you want to start your arc?</h3>
+                <StartPicker value={startDate} onChange={onStartDate} first={first} last={season.lastStart} />
+                <p className="label">
+                  It starts {starts} and ends on {ends}: {days} days. Once created, the start day is final.
+                  {startDate !== first && ' Until then there is nothing to check in.'}
+                </p>
+              </section>
 
               <label className="block space-y-2">
                 <span className="label block">

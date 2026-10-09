@@ -1,8 +1,8 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { api, type User } from './api'
-import { ErrorNote, Loading } from './components/ArcParts'
+import { ErrorNote, Loading, Logo } from './components/ArcParts'
 import { Layout } from './components/Layout'
 import { AdminPeople, AdminPerson, AdminUploads } from './pages/Admin'
 import { AuthPage } from './pages/AuthPage'
@@ -39,6 +39,7 @@ export default function App() {
           <Route path="/login" element={<AuthPage />} />
           <Route path="/signup" element={<AuthPage />} />
           <Route path="/c/:username" element={<Commitment />} />
+          <Route path="/u/:username" element={<GuestProfile />} />
           <Route path="/privacy" element={<Legal doc="privacy" />} />
           <Route path="/terms" element={<Legal doc="terms" />} />
           <Route path="*" element={<RememberAndSignIn />} />
@@ -60,6 +61,32 @@ function RememberAndSignIn() {
     // No storage: they just land on Today after signing in.
   }
   return <Navigate to="/login" replace />
+}
+
+// A profile opened by someone who isn't signed in. Signing in from here
+// brings them back to the same profile, where they can add the person.
+function GuestProfile() {
+  const { pathname } = useLocation()
+  const remember = () => {
+    try {
+      sessionStorage.setItem(NEXT, pathname)
+    } catch {
+      // No storage: they just land on Today after signing in.
+    }
+  }
+  return (
+    <main className="mx-auto max-w-[1040px] space-y-8 px-4 py-8 sm:px-8">
+      <div className="flex items-center justify-between gap-3">
+        <Link to="/login">
+          <Logo />
+        </Link>
+        <Link to="/login" className="btn h-9" onClick={remember}>
+          Start your own arc
+        </Link>
+      </div>
+      <Profile guest />
+    </main>
+  )
 }
 
 // Where a just-signed-in person was trying to go, if anywhere. Read once.

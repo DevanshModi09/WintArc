@@ -11,19 +11,21 @@ import { scheduleSummary, weeklyPlan } from '../schedule'
 import { supabase } from '../supabase'
 import { useTitle } from '../useTitle'
 
-export function Profile() {
+// `guest` is someone looking without being signed in: they see the same page
+// a stranger with an account would, with nothing to press but Share.
+export function Profile({ guest = false }: { guest?: boolean }) {
   const { username = '' } = useParams()
   // Keyed by username so navigating between profiles starts from a clean slate.
-  return <ProfileView key={username} username={username} />
+  return <ProfileView key={username} username={username} guest={guest} />
 }
 
-function ProfileView({ username }: { username: string }) {
+function ProfileView({ username, guest }: { username: string; guest: boolean }) {
   const [profile, setProfile] = useState<ProfileData>()
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const load = useCallback(() => api.getProfile(username).then(setProfile), [username])
+  const load = useCallback(() => (guest ? api.getGuestProfile : api.getProfile)(username).then(setProfile), [username, guest])
 
   useEffect(() => {
     load().catch((err: Error) => setError(err.message))
