@@ -8,3 +8,4 @@ server/generated
 supabase/.temp
 .vercel
 .env.local
+backups
