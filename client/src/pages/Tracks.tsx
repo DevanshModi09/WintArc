@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type P
 import { Link } from 'react-router-dom'
 import { api, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
-import { Checkbox, ErrorNote, Loading, Lock } from '../components/ArcParts'
+import { Checkbox, ErrorNote, Loading } from '../components/ArcParts'
 import { CheckpointList, CheckpointWarning } from '../components/CheckpointList'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
@@ -105,7 +105,7 @@ export function Tracks() {
         <p className="mt-4 text-muted">
           Each track's name, when it runs, and its checkpoints. The first unfinished checkpoint in a track is the one
           you're on, and it's what you check in against on Today. Checkpoints are fixed when a track is created, so
-          here you can only finish and reorder them.
+          here you can only finish and reorder them. You can add a track at any time, but never delete one.
         </p>
       </header>
 
@@ -154,7 +154,10 @@ function NewTrack({ run }: { run: Run }) {
   return (
     <form onSubmit={submit} className="space-y-3">
       <h2 className="h2">New track</h2>
-      <p className="text-muted">Add only what you can afford to do. A new track is more time out of every day it runs.</p>
+      <p className="text-muted">
+        Add only what you can afford to do. A new track is more time out of every day it runs, and once it's created it
+        can't be deleted.
+      </p>
       <CheckpointWarning />
       <div className="card">
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
@@ -217,7 +220,6 @@ const move = (ids: string[], from: number, to: number) => {
 function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressProps) {
   const [renaming, setRenaming] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   // While a checkpoint is being dragged: its id, and the order shown so far.
   const [drag, setDrag] = useState<{ id: string; ids: string[] }>()
   const saved = track.checkpoints.map((c) => c.id)
@@ -291,27 +293,6 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
           >
             {track.isPublic ? 'Public' : 'Private'}
           </button>
-          {confirmDelete ? (
-            <>
-              <button className="text-[13px] font-medium text-danger" onClick={() => run(() => api.deleteTrack(track.id))}>
-                Delete track
-              </button>
-              <button className="text-[13px] text-muted" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </button>
-            </>
-          ) : track.locked ? (
-            <span className="px-1 text-muted" title="This track has goals locked in for the arc, so it can't be deleted.">
-              <Lock />
-              <span className="sr-only">Locked in</span>
-            </span>
-          ) : (
-            editable && (
-              <button className="px-1 text-muted hover:text-fg" aria-label={`Delete ${track.name}`} onClick={() => setConfirmDelete(true)}>
-                ✕
-              </button>
-            )
-          )}
           <span className="font-mono text-xl font-semibold">{progress === null ? '–' : `${progress}%`}</span>
         </div>
         <div

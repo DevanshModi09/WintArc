@@ -31,8 +31,6 @@ export type Track = Schedule & {
   // False on the weekdays this track isn't scheduled for, and once every
   // checkpoint is finished.
   dueToday: boolean
-  // True from the day after it was added, when it can no longer be deleted.
-  locked: boolean
   // The checkpoint being worked on: the first in line that isn't finished.
   // Null when there are none left, or the track never had any.
   active: { id: string; title: string; number: number } | null
@@ -180,7 +178,6 @@ export const api = {
     request<ArcResponse>('POST', '/tracks', { ...track, today: today() }),
   updateTrack: (id: string, changes: { name?: string; isPublic?: boolean } & Partial<Schedule>) =>
     request<ArcResponse>('PATCH', `/tracks/${id}`, { ...changes, today: today() }),
-  deleteTrack: (id: string) => request<ArcResponse>('DELETE', `/tracks/${id}?today=${today()}`),
 
   // The day's entry for a track: a photo already uploaded to storage.
   checkIn: (trackId: string, entry: { photo: string; note: string }) =>

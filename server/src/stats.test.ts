@@ -137,17 +137,6 @@ test("rest days don't knock you out, and an arc with no goals isn't in the runni
   assert.equal(buildArcView(arc(track("t", [])), "2026-11-03").survivor.alive, false);
 });
 
-test("a track locks the day after it was added", () => {
-  const fresh = buildArcView(arc(track("t", [goal("g", [], "2026-11-05")])), "2026-11-05");
-  assert.equal(fresh.tracks[0].locked, false);
-
-  const next = buildArcView(arc(track("t", [goal("g", [], "2026-11-05")])), "2026-11-06");
-  assert.equal(next.tracks[0].locked, true);
-
-  // Nothing is locked while the arc is still to come.
-  assert.equal(buildArcView(arc(track("t", [goal("g", [])])), "2026-10-20").tracks[0].locked, false);
-});
-
 test("proof is today's photo, and only when there is one", () => {
   const g = { ...goal("g", []), checkIns: [{ date: "2026-11-01", note: "old", photo: "u/a.jpg" }, { date: "2026-11-02", note: "shipped auth", photo: "u/b.jpg" }] };
   const view = buildArcView(arc(track("t", [g])), "2026-11-02");

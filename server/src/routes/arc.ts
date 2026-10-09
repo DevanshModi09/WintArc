@@ -4,7 +4,7 @@ import { currentArc } from "../arcs";
 import { parseToday, season, weekday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
-import { buildArcView, isLocked } from "../stats";
+import { buildArcView } from "../stats";
 
 const MAX_TRACKS = 8;
 const MAX_CHECKPOINTS_PER_TRACK = 30;
@@ -59,8 +59,6 @@ const optionalText = (max: number) =>
     .trim()
     .max(max)
     .transform((value) => value || null);
-
-const LOCKED = "This is locked in for the arc. You can add more, but not take it back.";
 
 // Reflections ride along with the owner's arc and nowhere else, so nobody
 // else's view can ever include them. The season says whether an arc can be
@@ -150,14 +148,8 @@ arcRouter.patch("/tracks/:id", async (req, res) => {
   res.json(await arcResponse(res.locals.userId, today));
 });
 
-// Only on the day it was added: after that a track is part of the arc.
-arcRouter.delete("/tracks/:id", async (req, res) => {
-  const today = parseToday(req.query.today);
-  const track = await ownedTrack(res.locals.userId, req.params.id);
-  if (track.goals.some((g) => isLocked(g, today))) throw new HttpError(400, LOCKED);
-  await prisma.track.delete({ where: { id: track.id } });
-  res.json(await arcResponse(res.locals.userId, today));
-});
+// There is no deleting a track either. Tracks can be added to an arc at any
+// time, and once one is in, it stays.
 
 const checkInSchema = z.object({
   // Where the browser put the photo in the "proofs" bucket.

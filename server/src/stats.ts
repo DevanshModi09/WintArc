@@ -77,12 +77,6 @@ function completedOn(checkpoints: TrackInput["checkpoints"]) {
   return checkpoints.map((c) => c.doneOn ?? c.doneAt!.toISOString().slice(0, 10)).sort().at(-1)!;
 }
 
-// A track can be dropped on the day it's added, and any time before the arc
-// starts. After that it's locked in: the bar only ever goes up.
-export function isLocked(goal: { startsOn: string }, today: string) {
-  return goal.startsOn < today;
-}
-
 export type DayStatus = "perfect" | "partial" | "missed" | "empty";
 
 // `pendingLast` means the final entry is today and still in progress, so an
@@ -200,8 +194,6 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
           reminder: t.reminder,
           // False on its off days, and once every checkpoint is finished.
           dueToday: t.days.includes(weekday(today)) && (!complete || doneToday),
-          // A track that has been running for a day can't be deleted.
-          locked: t.goals.some((g) => isLocked(g, today)),
           checkpoints: t.checkpoints.map((c) => ({ id: c.id, title: c.title, done: c.doneAt !== null })),
           active: next === -1 ? null : { id: t.checkpoints[next].id, title: t.checkpoints[next].title, number: next + 1 },
           complete,

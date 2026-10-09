@@ -171,8 +171,8 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
           </div>
 
           <p className="text-[15px] leading-relaxed text-muted">
-            This is what you're deciding from today until {ends}. Once it's created you can't end the arc, and every
-            track's checkpoint list is final.
+            This is what you're deciding from today until {ends}. Once it's created you can't end the arc or delete a
+            track, and every track's checkpoint list is final. You can add more tracks later.
           </p>
 
           <section className="space-y-2">
@@ -203,11 +203,11 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
           <dl className="grid grid-cols-2 gap-3 text-[14px]">
             <div className="rounded-field bg-subtle px-4 py-3">
               <dt className="label text-[12px]">You still can</dt>
-              <dd className="mt-1 font-medium">Tick and reorder</dd>
+              <dd className="mt-1 font-medium">Add tracks, finish and reorder checkpoints</dd>
             </div>
             <div className="rounded-field bg-subtle px-4 py-3">
               <dt className="label text-[12px]">You no longer can</dt>
-              <dd className="mt-1 font-medium">Add, edit or delete</dd>
+              <dd className="mt-1 font-medium">Delete a track, or change its checkpoints</dd>
             </div>
           </dl>
 
