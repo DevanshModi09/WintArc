@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, type Arc, type Goal, type Track } from '../api'
+import { api, today, type Arc, type Goal, type Proof, type Track, type User } from '../api'
 import { Link } from 'react-router-dom'
-import { arcPhase, arcStats, trackProgress } from '../arcStats'
-import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Rewards, StatStrip } from '../components/ArcParts'
+import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
+import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Lock, Rewards, StatStrip } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
 import { Pencil, Rename } from '../components/Rename'
 import { scheduleSummary, weeklyPlan } from '../schedule'
@@ -33,7 +33,7 @@ const withSubtaskCheck = (arc: Arc, subtaskId: string, done: boolean) =>
     return { ...g, subtasks, doneToday: subtasks.every((s) => s.done) }
   })
 
-export function Today() {
+export function Today({ user, onUser }: { user: User; onUser: (user: User) => void }) {
   // undefined = still loading
   const [arc, setArc] = useState<Arc | null>()
   const [startingNew, setStartingNew] = useState(false)
@@ -87,6 +87,7 @@ export function Today() {
   }
 
   const nextBadge = arc.badges.find((b) => !b.earned)
+  const standing = survivorLabel(arc)
   const notStarted = arc.startsIn > 0
   const [year, month, day] = arc.startDate.split('-').map(Number)
   const startDay = new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
@@ -97,6 +98,14 @@ export function Today() {
         <div>
           <div className="font-mono text-muted">
             {arc.name} · {arcPhase(arc)}
+            {standing && (
+              <>
+                {' · '}
+                <Link to="/board" className="hover:text-fg">
+                  {standing}
+                </Link>
+              </>
+            )}
           </div>
           <h1 className="mt-1 text-[32px] leading-[1.1] font-bold">
             {arc.isOver
@@ -161,7 +170,7 @@ export function Today() {
               Tracks <span className="label ml-1.5 font-normal">{weeklyPlan(arc.tracks)} a week</span>
             </h2>
             {notStarted ? (
-              <span className="label">Set up your tracks now. Check-ins open on day 1.</span>
+              <span className="label">Set up your goals now. They lock in once the arc is running.</span>
             ) : nextBadge && (
               <span className="label">
                 {nextBadge.days - arc.streak.current} days to {nextBadge.name}
@@ -184,17 +193,42 @@ export function Today() {
               Edit tracks
             </Link>
           )}
+          {!arc.isOver && !notStarted && (
+            <ReflectionCard
+              key={today()}
+              saved={arc.reflections?.find((r) => r.date === today())?.text ?? ''}
+              count={arc.reflections?.length ?? 0}
+              save={(text) => run(() => api.setReflection(text))}
+            />
+          )}
         </div>
 
         <aside className="min-w-0 flex-[1_1_300px] space-y-6">
           <ActivityGrid arc={arc} />
           <LevelBar arc={arc} />
           <Rewards arc={arc} />
-          {!arc.isOver && !notStarted && (
-            <Link to="/wrapped" className="label block hover:text-fg">
-              See your arc so far →
-            </Link>
+          {!notStarted && (
+            <section className="space-y-2.5">
+              <h2 className="h2">Milestones</h2>
+              <div className="flex flex-wrap gap-2 font-mono text-[13px]">
+                {MILESTONES.map((m) =>
+                  milestoneUnlocked(arc, m) ? (
+                    <Link key={m} to={`/wrapped?day=${m}`} className="rounded-full bg-fg px-3 py-1.5 text-bg hover:bg-fg/80">
+                      Day {m} card
+                    </Link>
+                  ) : (
+                    <span key={m} title={`Unlocks after day ${m}`} className="rounded-full border border-dashed border-muted/50 px-3 py-1.5 text-muted">
+                      Day {m} card
+                    </span>
+                  ),
+                )}
+                <Link to="/wrapped" className="rounded-full border border-line px-3 py-1.5 hover:border-fg">
+                  {arc.isOver ? 'Final wrap' : 'Arc so far'}
+                </Link>
+              </div>
+            </section>
           )}
+          <SharePage user={user} onUser={onUser} />
         </aside>
       </div>
     </div>
@@ -210,6 +244,97 @@ type TrackCardProps = {
   checkSubtask: (subtaskId: string, done: boolean) => void
 }
 
+type ReflectionProps = { saved: string; count: number; save: (text: string) => void }
+
+// One line about today. They pile up into a journal on the wrap.
+function ReflectionCard({ saved, count, save }: ReflectionProps) {
+  const [text, setText] = useState(saved)
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (text.trim() !== saved) save(text.trim())
+  }
+
+  return (
+    <section className="space-y-2.5 pt-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="h2">Tonight's line</h2>
+        <span className="label">
+          {count > 0 ? (
+            <Link to="/wrapped" className="hover:text-fg">
+              {count} {count === 1 ? 'day' : 'days'} written →
+            </Link>
+          ) : (
+            'Only you can see this'
+          )}
+        </span>
+      </div>
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          className="input"
+          placeholder="What did you do today, or what got in the way?"
+          aria-label="One line about today"
+          maxLength={280}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button className="btn" disabled={text.trim() === saved}>
+          {saved ? 'Update' : 'Save'}
+        </button>
+      </form>
+    </section>
+  )
+}
+
+// A switch for the page anyone can open without an account, and its link.
+function SharePage({ user, onUser }: { user: User; onUser: (user: User) => void }) {
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const url = `${window.location.origin}/c/${user.username}`
+
+  const toggle = () =>
+    api.setSharing(!user.sharePublic).then(
+      (res) => onUser(res.user),
+      (err: Error) => setError(err.message),
+    )
+
+  const copy = () =>
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      },
+      () => setError("Couldn't copy the link"),
+    )
+
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="h2">Public page</h2>
+        <button className="label hover:text-fg" role="switch" aria-checked={user.sharePublic} onClick={toggle}>
+          {user.sharePublic ? 'On · turn off' : 'Off · turn on'}
+        </button>
+      </div>
+      {user.sharePublic ? (
+        <>
+          <p className="label">Anyone with this link can see your arc and public tracks, without an account.</p>
+          <div className="flex gap-2">
+            <Link to={`/c/${user.username}`} className="input flex min-w-0 items-center truncate font-mono text-[13px]">
+              /c/{user.username}
+            </Link>
+            <button className="btn-outline" onClick={copy}>
+              {copied ? 'Copied' : 'Copy link'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="label">Turn this on to get a link you can post: your commitment and your live grid, for anyone to see.</p>
+      )}
+      <ErrorNote message={error} />
+    </section>
+  )
+}
+
 // Daily goals are added, edited and ticked here. The track itself (name,
 // schedule, checkpoints) is set up on the Tracks page.
 function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: TrackCardProps) {
@@ -218,6 +343,8 @@ function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: 
   // The goal that has its "add a mini task" field open.
   const [addingTo, setAddingTo] = useState<string>()
   const [subDraft, setSubDraft] = useState('')
+  // The goal that has its proof form open.
+  const [proving, setProving] = useState<string>()
   // Off-days only matter once check-ins are open.
   const restDay = canCheckIn && !track.dueToday
   const progress = trackProgress(track)
@@ -288,6 +415,15 @@ function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: 
                 )}
                 <span className="font-mono text-[13px] text-muted">{goal.streak.current}d</span>
               </button>
+              {editable && goal.doneToday && !locked && (
+                <button
+                  className="px-2 text-[13px] text-muted hover:text-fg"
+                  aria-expanded={proving === goal.id}
+                  onClick={() => setProving(proving === goal.id ? undefined : goal.id)}
+                >
+                  {goal.proof ? 'Edit proof' : 'Add proof'}
+                </button>
+              )}
               {editable && (
                 <>
                   <button
@@ -302,19 +438,40 @@ function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: 
                   >
                     +
                   </button>
-                  <button className="px-2 text-muted hover:text-fg" aria-label={`Rename ${goal.title}`} onClick={() => setRenaming(goal.id)}>
-                    <Pencil />
-                  </button>
-                  <button
-                    className="py-2 pr-4 pl-2 text-muted hover:text-fg"
-                    aria-label={`Delete ${goal.title}`}
-                    onClick={() => run(() => api.deleteGoal(goal.id))}
-                  >
-                    ✕
-                  </button>
+                  {goal.locked ? (
+                    <span className="py-2 pr-4 pl-2 text-muted" title="Locked in for the arc. You can add to it, but not change or remove it.">
+                      <Lock />
+                      <span className="sr-only">Locked in</span>
+                    </span>
+                  ) : (
+                    <>
+                      <button className="px-2 text-muted hover:text-fg" aria-label={`Rename ${goal.title}`} onClick={() => setRenaming(goal.id)}>
+                        <Pencil />
+                      </button>
+                      <button
+                        className="py-2 pr-4 pl-2 text-muted hover:text-fg"
+                        aria-label={`Delete ${goal.title}`}
+                        onClick={() => run(() => api.deleteGoal(goal.id))}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </div>
+            {proving === goal.id && goal.doneToday ? (
+              <ProofForm
+                proof={goal.proof}
+                onCancel={() => setProving(undefined)}
+                onSave={(proof) => {
+                  setProving(undefined)
+                  run(() => api.setProof(goal.id, proof))
+                }}
+              />
+            ) : (
+              goal.proof && <ProofLine proof={goal.proof} />
+            )}
             {goal.subtasks.map((sub) => (
               <div key={sub.id} className="flex items-center">
                 <button
@@ -326,7 +483,7 @@ function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: 
                   <Checkbox checked={sub.done} />
                   <span className={sub.done ? 'text-muted line-through' : ''}>{sub.title}</span>
                 </button>
-                {editable && (
+                {editable && !goal.locked && (
                   <button
                     className="py-1 pr-4 pl-2 text-[13px] text-muted hover:text-fg"
                     aria-label={`Delete ${sub.title}`}
@@ -370,5 +527,56 @@ function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: 
         </form>
       )}
     </section>
+  )
+}
+
+// The proof shown under a ticked goal.
+function ProofLine({ proof }: { proof: Proof }) {
+  return (
+    <p className="pr-4 pb-2.5 pl-11 text-[13px] break-words text-muted">
+      {proof.note}
+      {proof.note && proof.link && ' · '}
+      {proof.link && (
+        <a href={proof.link} target="_blank" rel="noreferrer noopener" className="text-fg underline underline-offset-2">
+          {proof.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}
+        </a>
+      )}
+    </p>
+  )
+}
+
+type ProofFormProps = { proof: Proof | null; onSave: (proof: { note: string; link: string }) => void; onCancel: () => void }
+
+function ProofForm({ proof, onSave, onCancel }: ProofFormProps) {
+  const [note, setNote] = useState(proof?.note ?? '')
+  const [link, setLink] = useState(proof?.link ?? '')
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    onSave({ note: note.trim(), link: link.trim() })
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-wrap gap-2 pr-4 pb-3 pl-11" onKeyDown={(e) => e.key === 'Escape' && onCancel()}>
+      <input
+        autoFocus
+        className="input h-9 min-w-48 flex-[2] text-[13px]"
+        placeholder="What did you do?"
+        aria-label="A line about what you did"
+        maxLength={200}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <input
+        className="input h-9 min-w-40 flex-1 text-[13px]"
+        type="url"
+        placeholder="Link (commit, post, video)"
+        aria-label="A link to it"
+        maxLength={300}
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+      />
+      <button className="btn h-9">Save</button>
+    </form>
   )
 }

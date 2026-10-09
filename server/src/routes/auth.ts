@@ -34,7 +34,7 @@ const editProfileSchema = z.object({
     .transform((tags) => tags.filter((t, i) => tags.findIndex((o) => o.toLowerCase() === t.toLowerCase()) === i)),
 });
 
-const sessionUser = { ...publicUserSelect, email: true } as const;
+const sessionUser = { ...publicUserSelect, email: true, sharePublic: true } as const;
 
 const MAX_AVATAR_BYTES = 200_000;
 const JPEG_PREFIX = "data:image/jpeg;base64,";
@@ -83,6 +83,15 @@ authRouter.patch("/profile", async (req, res) => {
   res.json({ user: toPublicUser(user) });
 });
 
+// Turns the public commitment page on or off.
+authRouter.put("/sharing", async (req, res) => {
+  const { sharePublic } = z.object({ sharePublic: z.boolean() }).parse(req.body);
+  const { count } = await prisma.user.updateMany({ where: { id: res.locals.authId }, data: { sharePublic } });
+  if (count === 0) throw new HttpError(403, "Finish setting up your profile first");
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: res.locals.authId }, select: sessionUser });
+  res.json({ user: toPublicUser(user) });
+});
+
 // The browser crops and shrinks the photo first and sends it as a JPEG data URL.
 authRouter.put("/avatar", async (req, res) => {
   const { image } = z.object({ image: z.string().startsWith(JPEG_PREFIX, "Upload a JPEG image") }).parse(req.body);
@@ -106,6 +115,7 @@ authRouter.get("/export", async (_req, res) => {
       arcs: {
         orderBy: { createdAt: "asc" },
         include: {
+          reflections: { select: { date: true, text: true }, orderBy: { date: "asc" } },
           tracks: {
             orderBy: { createdAt: "asc" },
             include: {
@@ -113,7 +123,7 @@ authRouter.get("/export", async (_req, res) => {
               goals: {
                 orderBy: { createdAt: "asc" },
                 include: {
-                  checkIns: { select: { date: true }, orderBy: { date: "asc" } },
+                  checkIns: { select: { date: true, note: true, link: true }, orderBy: { date: "asc" } },
                   subtasks: { select: { title: true }, orderBy: { createdAt: "asc" } },
                 },
               },

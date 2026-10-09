@@ -135,3 +135,38 @@ test("checkpoints report whether they've been ticked", () => {
     [true, false],
   );
 });
+
+test("you survive until the first day something is left undone", () => {
+  const clean = buildArcView(arc(track("t", [goal("g", ["2026-11-01", "2026-11-02"])])), "2026-11-03");
+  assert.deepEqual(clean.survivor, { alive: true, fellOnDay: null });
+
+  const fallen = buildArcView(arc(track("t", [goal("a", ["2026-11-01", "2026-11-02"]), goal("b", ["2026-11-01"])])), "2026-11-04");
+  assert.deepEqual(fallen.survivor, { alive: false, fellOnDay: 2 });
+});
+
+test("rest days don't knock you out, and an arc with no goals isn't in the running", () => {
+  // Weekdays only: Sunday the 1st is a rest day.
+  const view = buildArcView(arc(track("t", [goal("g", ["2026-11-02"])], [1, 2, 3, 4, 5])), "2026-11-03");
+  assert.equal(view.survivor.alive, true);
+  assert.equal(buildArcView(arc(track("t", [])), "2026-11-03").survivor.alive, false);
+});
+
+test("a goal locks the day after it was added, and takes its track with it", () => {
+  const fresh = buildArcView(arc(track("t", [goal("g", [], "2026-11-05")])), "2026-11-05");
+  assert.equal(fresh.tracks[0].goals[0].locked, false);
+  assert.equal(fresh.tracks[0].locked, false);
+
+  const next = buildArcView(arc(track("t", [goal("g", [], "2026-11-05")])), "2026-11-06");
+  assert.equal(next.tracks[0].goals[0].locked, true);
+  assert.equal(next.tracks[0].locked, true);
+
+  // Nothing is locked while the arc is still to come.
+  assert.equal(buildArcView(arc(track("t", [goal("g", [])])), "2026-10-20").tracks[0].locked, false);
+});
+
+test("proof is only today's, and only when there is some", () => {
+  const g = { ...goal("g", []), checkIns: [{ date: "2026-11-01", note: "old", link: null }, { date: "2026-11-02", note: "shipped auth", link: null }] };
+  const view = buildArcView(arc(track("t", [g])), "2026-11-02");
+  assert.deepEqual(view.tracks[0].goals[0].proof, { note: "shipped auth", link: null });
+  assert.equal(buildArcView(arc(track("t", [goal("g", ["2026-11-02"])])), "2026-11-02").tracks[0].goals[0].proof, null);
+});

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type P
 import { Link } from 'react-router-dom'
 import { api, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
-import { Checkbox, ErrorNote, Loading } from '../components/ArcParts'
+import { Checkbox, ErrorNote, Loading, Lock } from '../components/ArcParts'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
 import { scheduleSummary } from '../schedule'
@@ -85,7 +85,8 @@ export function Tracks() {
         </h1>
         <p className="mt-2 text-muted">
           Set up each track here: its name, when it runs and its checkpoints. Checkpoints are the milestones you tick
-          once, and they fill the track up. Daily goals live on Today.
+          once, and they fill the track up. Daily goals live on Today. Once the arc is running, a track with goals can't
+          be deleted and can only gain days.
         </p>
       </header>
 
@@ -260,10 +261,17 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
                 Cancel
               </button>
             </>
+          ) : track.locked ? (
+            <span className="px-1 text-muted" title="This track has goals locked in for the arc, so it can't be deleted.">
+              <Lock />
+              <span className="sr-only">Locked in</span>
+            </span>
           ) : (
-            <button className="px-1 text-muted hover:text-fg" aria-label={`Delete ${track.name}`} onClick={() => setConfirmDelete(true)}>
-              ✕
-            </button>
+            editable && (
+              <button className="px-1 text-muted hover:text-fg" aria-label={`Delete ${track.name}`} onClick={() => setConfirmDelete(true)}>
+                ✕
+              </button>
+            )
           )}
           <span className="font-mono text-xl font-semibold">{progress === null ? '–' : `${progress}%`}</span>
         </div>

@@ -1,5 +1,4 @@
 import type { Arc, DayStatus } from './api'
-import type { wrappedStats } from './arcStats'
 
 // Draws the wrap as a 1080x1350 image (the portrait size social apps like),
 // straight onto a canvas so there's nothing to screenshot.
@@ -15,9 +14,11 @@ const CELLS: Record<DayStatus, string> = { perfect: FG, partial: '#6b6b6b', miss
 const SANS = "'Space Grotesk', system-ui, sans-serif"
 const MONO = "'Geist Mono', ui-monospace, monospace"
 
-type Wrap = { arc: Arc; name: string; username: string; stats: ReturnType<typeof wrappedStats> }
+// `tiles` are up to six [number, label] pairs. `days` is how much of the grid
+// to fill in, for a wrap of only the first part of the arc.
+type Wrap = { arc: Arc; username: string; title: string; subtitle: string; tiles: string[][]; footer: string; days?: number }
 
-export async function wrappedImage({ arc, name, username, stats }: Wrap): Promise<Blob> {
+export async function wrappedImage({ arc, username, title, subtitle, tiles, footer, days = arc.totalDays }: Wrap): Promise<Blob> {
   // Canvas text falls back to a system font unless the web fonts are in.
   await Promise.all([document.fonts.load(`700 80px ${SANS}`), document.fonts.load(`500 28px ${MONO}`)]).catch(() => {})
 
@@ -46,29 +47,21 @@ export async function wrappedImage({ arc, name, username, stats }: Wrap): Promis
   text('WintArc', PAD + 50, 118, `700 34px ${SANS}`)
   text(`@${username}`, W - PAD, 118, `500 28px ${MONO}`, MUTED, 'right')
 
-  text(arc.name, PAD, 250, `700 84px ${SANS}`)
-  text(`${name} · ${arc.isOver ? `${arc.totalDays} days` : `day ${arc.dayNumber} of ${arc.totalDays}`}`, PAD, 304, `500 30px ${MONO}`, MUTED)
+  text(title, PAD, 250, `700 84px ${SANS}`)
+  text(subtitle, PAD, 304, `500 30px ${MONO}`, MUTED)
 
   // The whole arc, one square a day.
   const cols = 15
   const gap = 8
   const cell = (W - PAD * 2 - gap * (cols - 1)) / cols
   for (let i = 0; i < arc.totalDays; i++) {
-    ctx.fillStyle = CELLS[arc.days[i]?.status ?? 'empty']
+    ctx.fillStyle = CELLS[(i < days && arc.days[i]?.status) || 'empty']
     ctx.beginPath()
     ctx.roundRect(PAD + (i % cols) * (cell + gap), 360 + Math.floor(i / cols) * (cell + gap), cell, cell, 6)
     ctx.fill()
   }
 
-  // Six headline numbers in a 2 x 3 grid.
-  const tiles = [
-    [`${stats.perfectDays}`, 'perfect days'],
-    [`${stats.bestStreak}d`, 'best streak'],
-    [`${stats.consistency}%`, 'consistency'],
-    [`${stats.totalCheckIns}`, 'check-ins'],
-    [stats.checkpointsTotal ? `${stats.checkpointsDone}/${stats.checkpointsTotal}` : '–', 'checkpoints'],
-    [`L${stats.level}`, stats.levelTitle.toLowerCase()],
-  ]
+  // The headline numbers, three to a row.
   const top = 360 + 6 * (cell + gap) + 70
   tiles.forEach(([value, label], i) => {
     const x = PAD + (i % 3) * ((W - PAD * 2) / 3)
@@ -77,7 +70,6 @@ export async function wrappedImage({ arc, name, username, stats }: Wrap): Promis
     text(label, x, y + 122, `500 26px ${MONO}`, MUTED)
   })
 
-  const footer = stats.topTrack ? `Strongest track: ${stats.topTrack.name} · ${stats.topTrack.bestStreak}d` : `${stats.xp.toLocaleString()} XP`
   text(footer, PAD, H - PAD, `500 28px ${MONO}`, MUTED)
 
   return new Promise((resolve, reject) =>

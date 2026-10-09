@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api, type Arc, type User } from '../api'
-import { wrappedStats } from '../arcStats'
+import { MILESTONES, milestoneStats, milestoneUnlocked, wrappedStats } from '../arcStats'
 import { ErrorNote, Loading, Logo } from '../components/ArcParts'
 import { useTitle } from '../useTitle'
 import { wrappedImage } from '../wrappedImage'
@@ -13,13 +13,55 @@ const CELL: Record<string, string> = {
   empty: 'bg-cell',
 }
 
-// The arc summed up on one card you can save or share. It works mid-arc too,
-// as a look at how things stand so far.
+const longDate = (date: string) => {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+
+// What goes on the card: either the whole arc, or just its first `day` days.
+function cardFor(arc: Arc, user: User, day: number | null) {
+  if (day) {
+    const s = milestoneStats(arc, day)
+    return {
+      title: `${day} days in`,
+      subtitle: `${user.name} · ${arc.name}`,
+      days: day,
+      tiles: [
+        [`${s.perfectDays}`, 'perfect days'],
+        [`${s.bestStreak}d`, 'best streak'],
+        [`${s.consistency}%`, 'consistency'],
+        [`${s.totalCheckIns}`, 'check-ins'],
+      ],
+      footer: `${arc.totalDays - day} days to go`,
+    }
+  }
+  const s = wrappedStats(arc)
+  const footer = s.topTrack ? `Strongest track: ${s.topTrack.name} · ${s.topTrack.bestStreak}d` : `${s.xp.toLocaleString()} XP`
+  return {
+    title: arc.name,
+    subtitle: `${user.name} · ${arc.isOver ? `${arc.totalDays} days` : `day ${arc.dayNumber} of ${arc.totalDays}`}`,
+    days: arc.totalDays,
+    tiles: [
+      [`${s.perfectDays}`, 'perfect days'],
+      [`${s.bestStreak}d`, 'best streak'],
+      [`${s.consistency}%`, 'consistency'],
+      [`${s.totalCheckIns}`, 'check-ins'],
+      [s.checkpointsTotal ? `${s.checkpointsDone}/${s.checkpointsTotal}` : '–', 'checkpoints'],
+      [`L${s.level}`, s.levelTitle.toLowerCase()],
+    ],
+    footer: footer + (s.badges > 0 ? ` · ${s.badges} ${s.badges === 1 ? 'reward' : 'rewards'}` : ''),
+  }
+}
+
+// The arc summed up on one card you can save or share. Day 30 and day 60 each
+// unlock a smaller one on the way, and the full wrap works mid-arc too as a
+// look at how things stand so far.
 export function Wrapped({ user }: { user: User }) {
   // undefined = still loading
   const [arc, setArc] = useState<Arc | null>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [params, setParams] = useSearchParams()
   useTitle('Wrapped')
 
   useEffect(() => {
@@ -44,23 +86,19 @@ export function Wrapped({ user }: { user: User }) {
     )
   }
 
-  const stats = wrappedStats(arc)
-  const tiles = [
-    { value: stats.perfectDays, label: 'perfect days' },
-    { value: `${stats.bestStreak}d`, label: 'best streak' },
-    { value: `${stats.consistency}%`, label: 'consistency' },
-    { value: stats.totalCheckIns, label: 'check-ins' },
-    { value: stats.checkpointsTotal ? `${stats.checkpointsDone}/${stats.checkpointsTotal}` : '–', label: 'checkpoints' },
-    { value: `L${stats.level}`, label: stats.levelTitle.toLowerCase() },
-  ]
+  // A milestone that isn't open yet falls back to the full wrap.
+  const asked = Number(params.get('day'))
+  const day = MILESTONES.includes(asked) && milestoneUnlocked(arc, asked) ? asked : null
+  const card = cardFor(arc, user, day)
+  const reflections = arc.reflections ?? []
 
   async function make(action: (file: File) => Promise<void> | void) {
     if (!arc) return
     setError('')
     setBusy(true)
     try {
-      const blob = await wrappedImage({ arc, name: user.name, username: user.username, stats })
-      await action(new File([blob], `${arc.name} wrapped.png`, { type: 'image/png' }))
+      const blob = await wrappedImage({ arc, username: user.username, ...card })
+      await action(new File([blob], `${arc.name} ${day ? `day ${day}` : 'wrapped'}.png`, { type: 'image/png' }))
     } catch (err) {
       // Closing the share sheet isn't a failure.
       if ((err as Error).name !== 'AbortError') setError((err as Error).message)
@@ -84,15 +122,42 @@ export function Wrapped({ user }: { user: User }) {
   // Mostly phones: desktop browsers rarely share files.
   const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([], 'x.png', { type: 'image/png' })] })
 
+  const tabClass = (selected: boolean) =>
+    `h-8 rounded-full border px-3 font-mono text-[13px] transition disabled:cursor-not-allowed ${
+      selected ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg disabled:hover:border-line'
+    }`
+
   return (
     <div className="mx-auto max-w-[520px] space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-[32px] leading-[1.1] font-bold">{arc.isOver ? 'Your arc, wrapped' : 'Your arc so far'}</h1>
         {!arc.isOver && (
-          <p className="mt-2 text-muted">
-            Day {arc.dayNumber} of {arc.totalDays}. The final wrap lands when the arc ends.
+          <p className="text-muted">
+            Day {arc.dayNumber} of {arc.totalDays}. A card unlocks after day 30 and day 60, and the final wrap lands when
+            the arc ends.
           </p>
         )}
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Which wrap">
+          {MILESTONES.map((m) => {
+            const open = milestoneUnlocked(arc, m)
+            return (
+              <button
+                key={m}
+                className={tabClass(day === m)}
+                aria-pressed={day === m}
+                disabled={!open}
+                title={open ? undefined : `Unlocks after day ${m}`}
+                onClick={() => setParams({ day: String(m) })}
+              >
+                Day {m}
+                {!open && ' · locked'}
+              </button>
+            )
+          })}
+          <button className={tabClass(day === null)} aria-pressed={day === null} onClick={() => setParams({})}>
+            {arc.isOver ? 'Final' : 'So far'}
+          </button>
+        </div>
       </header>
 
       <ErrorNote message={error} />
@@ -103,30 +168,23 @@ export function Wrapped({ user }: { user: User }) {
           <span className="font-mono text-[13px] text-muted">@{user.username}</span>
         </div>
         <div>
-          <h2 className="text-[40px] leading-none font-bold">{arc.name}</h2>
-          <p className="mt-2 font-mono text-[13px] text-muted">
-            {user.name} · {arc.isOver ? `${arc.totalDays} days` : `day ${arc.dayNumber} of ${arc.totalDays}`}
-          </p>
+          <h2 className="text-[40px] leading-none font-bold">{card.title}</h2>
+          <p className="mt-2 font-mono text-[13px] text-muted">{card.subtitle}</p>
         </div>
         <div className="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-[3px]">
           {Array.from({ length: arc.totalDays }, (_, i) => (
-            <div key={i} className={`aspect-square rounded-[3px] ${CELL[arc.days[i]?.status ?? 'empty']}`} />
+            <div key={i} className={`aspect-square rounded-[3px] ${CELL[(i < card.days && arc.days[i]?.status) || 'empty']}`} />
           ))}
         </div>
         <div className="grid grid-cols-3 gap-x-4 gap-y-6">
-          {tiles.map((t) => (
-            <div key={t.label}>
-              <div className="text-[34px] leading-none font-bold">{t.value}</div>
-              <div className="mt-1.5 font-mono text-[12px] text-muted">{t.label}</div>
+          {card.tiles.map(([value, label]) => (
+            <div key={label}>
+              <div className="text-[34px] leading-none font-bold">{value}</div>
+              <div className="mt-1.5 font-mono text-[12px] text-muted">{label}</div>
             </div>
           ))}
         </div>
-        <p className="font-mono text-[13px] text-muted">
-          {stats.topTrack
-            ? `Strongest track: ${stats.topTrack.name} · ${stats.topTrack.bestStreak}d`
-            : `${stats.xp.toLocaleString()} XP`}
-          {stats.badges > 0 && ` · ${stats.badges} ${stats.badges === 1 ? 'reward' : 'rewards'}`}
-        </p>
+        <p className="font-mono text-[13px] text-muted">{card.footer}</p>
       </section>
 
       <div className="flex flex-wrap gap-2">
@@ -142,6 +200,22 @@ export function Wrapped({ user }: { user: User }) {
           Back to Today
         </Link>
       </div>
+
+      {reflections.length > 0 && (
+        <section className="space-y-3 pt-4">
+          <h2 className="h2">
+            In your own words <span className="label ml-1.5 font-normal">only you can see this</span>
+          </h2>
+          <ol className="card divide-y divide-line">
+            {reflections.map((r) => (
+              <li key={r.date} className="flex gap-4 px-4 py-3">
+                <span className="w-16 shrink-0 font-mono text-[13px] text-muted">{longDate(r.date)}</span>
+                <span className="min-w-0 break-words">{r.text}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </div>
   )
 }

@@ -12,6 +12,7 @@ import { errorHandler } from "./errors";
 import { arcRouter } from "./routes/arc";
 import { authRouter } from "./routes/auth";
 import { avatarRouter } from "./routes/avatars";
+import { publicRouter } from "./routes/public";
 import { socialRouter } from "./routes/social";
 
 // Some networks hand out IPv6 routes to Supabase that time out, which would
@@ -80,6 +81,7 @@ app.use("/api", limiter(240), (_req, res, next) => {
 // Roomy enough for a profile photo sent as a base64 data URL.
 app.use("/api", express.json({ limit: "400kb" }));
 app.use("/api/auth", authRouter);
+app.use("/api/public", publicRouter);
 app.use("/api", requireAuth, requireProfile, arcRouter, socialRouter);
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });

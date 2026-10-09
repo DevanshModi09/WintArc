@@ -22,6 +22,9 @@ model User {
   stack        String[] @default([])
   location     String?
   link         String?
+  // Off by default: turns on the commitment page anyone can open without an
+  // account, at /c/<username>.
+  sharePublic  Boolean  @default(false)
   createdAt    DateTime @default(now())
   arcs         Arc[]
   sentRequests     Friendship[] @relation("requester")
@@ -39,8 +42,21 @@ model Arc {
   endDate   String
   createdAt DateTime @default(now())
   tracks    Track[]
+  reflections Reflection[]
 
   @@index([userId, createdAt])
+}
+
+// One line a day on how it went. Only ever shown to the arc's owner.
+model Reflection {
+  id        String   @id @default(cuid())
+  arcId     String
+  arc       Arc      @relation(fields: [arcId], references: [id], onDelete: Cascade)
+  date      String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@unique([arcId, date])
 }
 
 // A track is one vertical inside an arc: "Web Dev", "DSA", "Badminton".
@@ -116,9 +132,13 @@ model CheckIn {
   goalId    String
   goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
   date      String
+  // Optional proof of the work: a line about it and a link to it.
+  note      String?
+  link      String?
   createdAt DateTime @default(now())
 
   @@unique([goalId, date])
+  @@index([createdAt])
 }
 
 // One row per pair of users. It is a pending request until accepted.

@@ -33,6 +33,9 @@ export function Layout({ user }: { user: User }) {
           <NavLink to="/tracks" className={navClass}>
             Tracks
           </NavLink>
+          <NavLink to="/board" className={navClass}>
+            Board
+          </NavLink>
           <NavLink to="/friends" className={navClass}>
             Friends
           </NavLink>

@@ -9,7 +9,7 @@ const withProgress = {
       goals: {
         orderBy: { createdAt: "asc" },
         include: {
-          checkIns: { select: { date: true } },
+          checkIns: { select: { date: true, note: true, link: true } },
           subtasks: { orderBy: { createdAt: "asc" }, select: { id: true, title: true, doneOn: true } },
         },
       },
@@ -25,6 +25,15 @@ export async function allArcs(userId: string) {
 // A user's current arc is simply their most recent one.
 export async function currentArc(userId: string) {
   return prisma.arc.findFirst({ where: { userId }, orderBy: { createdAt: "desc" }, include: withProgress });
+}
+
+// The arc each person is running in the season that starts on `startDate`,
+// keyed by user id.
+export async function seasonArcs(startDate: string) {
+  const arcs = await prisma.arc.findMany({ where: { startDate }, orderBy: { createdAt: "desc" }, include: withProgress });
+  const latest = new Map<string, (typeof arcs)[number]>();
+  for (const arc of arcs) if (!latest.has(arc.userId)) latest.set(arc.userId, arc);
+  return latest;
 }
 
 // The current arc of each of these users, keyed by user id.

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Arc, Track } from './api'
-import { trackProgress, wrappedStats } from './arcStats'
+import { milestoneStats, milestoneUnlocked, trackProgress, wrappedStats } from './arcStats'
 
 const track = (name: string, best: number, done: boolean[]) =>
   ({ name, streak: { current: 0, best }, checkpoints: done.map((d, i) => ({ id: `${name}${i}`, title: '', done: d })) }) as Track
@@ -43,4 +43,16 @@ test('wrappedStats copes with an arc that has nothing yet', () => {
   assert.equal(stats.consistency, 0)
   assert.equal(stats.topTrack, null)
   assert.equal(stats.checkpointsTotal, 0)
+})
+
+test('milestoneStats only counts the days up to the milestone', () => {
+  const days = ['perfect', 'perfect', 'empty', 'perfect', 'missed', 'perfect'].map((status, i) => ({ date: `d${i}`, status, done: status === 'perfect' ? 2 : 0 }))
+  const stats = milestoneStats({ days } as Arc, 5)
+  assert.deepEqual(stats, { perfectDays: 3, bestStreak: 3, consistency: 75, totalCheckIns: 6 })
+})
+
+test('a milestone unlocks the day after it', () => {
+  assert.equal(milestoneUnlocked({ dayNumber: 30, isOver: false }, 30), false)
+  assert.equal(milestoneUnlocked({ dayNumber: 31, isOver: false }, 30), true)
+  assert.equal(milestoneUnlocked({ dayNumber: 12, isOver: true }, 60), true)
 })

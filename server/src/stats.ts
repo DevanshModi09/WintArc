@@ -33,7 +33,7 @@ type GoalInput = {
   title: string;
   emoji: string | null;
   startsOn: string;
-  checkIns: { date: string }[];
+  checkIns: { date: string; note?: string | null; link?: string | null }[];
   subtasks: { id: string; title: string; doneOn: string | null }[];
 };
 
@@ -63,6 +63,12 @@ type Goal = GoalInput & { done: Set<string>; days: number[] };
 // A goal only counts on the weekdays its track is scheduled for.
 function isDue(goal: Goal, date: string) {
   return goal.startsOn <= date && goal.days.includes(weekday(date));
+}
+
+// A goal can be reworded or dropped on the day it's added, and any time before
+// the arc starts. After that it's locked in: the bar only ever goes up.
+export function isLocked(goal: { startsOn: string }, today: string) {
+  return goal.startsOn < today;
 }
 
 export type DayStatus = "perfect" | "partial" | "missed" | "empty";
@@ -118,6 +124,11 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
   const dueToday = allGoals.filter((g) => isDue(g, today));
   const { days, streak } = summarize(allGoals, dates, todayInArc);
 
+  // You're a survivor until the first day you leave something undone. Today
+  // doesn't count against you while it's still going.
+  const fell = days.findIndex((d) => (d.status === "missed" || d.status === "partial") && !(todayInArc && d.date === today));
+  const survivor = { alive: allGoals.length > 0 && fell === -1, fellOnDay: fell === -1 ? null : fell + 1 };
+
   const totalCheckIns = days.reduce((sum, d) => sum + d.done, 0);
   const perfectDays = days.filter((d) => d.status === "perfect").length;
   const badges = BADGES.map((b) => ({ ...b, earned: streak.best >= b.days }));
@@ -138,6 +149,7 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
     startsIn: Math.max(0, diffDays(today, arc.startDate)),
     isOver: today > arc.endDate,
     streak,
+    survivor,
     perfectDays,
     totalCheckIns,
     today: {
@@ -152,7 +164,7 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
       xpPerLevel: XP_PER_LEVEL,
     },
     badges,
-    days: days.map(({ date, status }) => ({ date, status })),
+    days: days.map(({ date, status, done }) => ({ date, status, done })),
     tracks: tracks
       .filter((t) => t.isPublic || !opts.publicOnly)
       .map((t) => ({
@@ -164,15 +176,20 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
         startTime: t.startTime,
         reminder: t.reminder,
         dueToday: t.days.includes(weekday(today)),
+        // A track holding a locked goal can't be deleted.
+        locked: t.goals.some((g) => isLocked(g, today)),
         checkpoints: t.checkpoints.map((c) => ({ id: c.id, title: c.title, done: c.doneAt !== null })),
         streak: summarize(t.goals, dates, todayInArc).streak,
         goals: t.goals.map((g) => {
           const goalDates = dates.filter((d) => isDue(g, d));
+          const checkIn = g.checkIns.find((c) => c.date === today);
           return {
             id: g.id,
             title: g.title,
             emoji: g.emoji,
+            locked: isLocked(g, today),
             doneToday: g.done.has(today),
+            proof: checkIn && (checkIn.note || checkIn.link) ? { note: checkIn.note ?? null, link: checkIn.link ?? null } : null,
             // Subtasks reset every day: one ticked yesterday is open again.
             subtasks: g.subtasks.map((s) => ({ id: s.id, title: s.title, done: s.doneOn === today })),
             total: goalDates.filter((d) => g.done.has(d)).length,

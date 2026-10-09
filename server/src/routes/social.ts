@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { allArcs, type currentArc, currentArcs } from "../arcs";
-import { parseToday } from "../dates";
+import { allArcs, type currentArc, currentArcs, seasonArcs } from "../arcs";
+import { ARC_DAYS, addDays, diffDays, parseToday, seasonStart } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
@@ -122,6 +122,93 @@ socialRouter.get("/friends", async (req, res) => {
     incoming: pending.filter((f) => f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: toPublicUser(f.requester) })),
     outgoing: pending.filter((f) => f.requesterId === me).map((f) => ({ friendshipId: f.id, user: toPublicUser(f.addressee) })),
   });
+});
+
+// Everyone running this season's arc, and who hasn't dropped a day yet.
+// Working it out reads every arc of the season, so the result is kept for a
+// short while and shared between viewers.
+const BOARD_TTL_MS = 30_000;
+let board: { key: string; at: number; rows: Promise<BoardRow[]> } | undefined;
+
+type BoardRow = { user: ReturnType<typeof toPublicUser>; alive: boolean; fellOnDay: number | null; streak: number; xp: number; level: number };
+
+async function boardRows(startDate: string, today: string): Promise<BoardRow[]> {
+  const arcs = await seasonArcs(startDate);
+  const users = await prisma.user.findMany({ where: { id: { in: [...arcs.keys()] } }, select: publicUserSelect });
+  return users.flatMap((user) => {
+    const arc = arcs.get(user.id)!;
+    // An arc with no goals isn't in the running.
+    if (!arc.tracks.some((t) => t.goals.length > 0)) return [];
+    const { survivor, streak, xp, level } = buildArcView(arc, today);
+    return [{ user: toPublicUser(user), ...survivor, streak: streak.current, xp, level: level.number }];
+  });
+}
+
+socialRouter.get("/survivors", async (req, res) => {
+  const today = parseToday(req.query.today);
+  const startDate = seasonStart(today);
+  const key = `${startDate} ${today}`;
+  if (board?.key !== key || Date.now() - board.at > BOARD_TTL_MS) {
+    board = { key, at: Date.now(), rows: boardRows(startDate, today) };
+    // A failed load shouldn't be served to the next viewer.
+    board.rows.catch(() => (board = undefined));
+  }
+  const rows = await board.rows;
+  const standing = rows.filter((r) => r.alive).sort((a, b) => b.xp - a.xp);
+  const me = rows.find((r) => r.user.id === res.locals.userId);
+  res.json({
+    season: {
+      startDate,
+      totalDays: ARC_DAYS,
+      startsIn: Math.max(0, diffDays(today, startDate)),
+      dayNumber: Math.min(ARC_DAYS, Math.max(0, diffDays(startDate, today) + 1)),
+    },
+    started: rows.length,
+    standing: standing.length,
+    me: me ? { alive: me.alive, fellOnDay: me.fellOnDay } : null,
+    survivors: standing.slice(0, 100).map(({ user, streak, xp, level }) => ({ user, streak, xp, level })),
+  });
+});
+
+// The last week of work from you and your friends, a card per person per day.
+// Friends' private tracks never appear.
+socialRouter.get("/feed", async (req, res) => {
+  const today = parseToday(req.query.today);
+  const me: string = res.locals.userId;
+  const friendships = await prisma.friendship.findMany({
+    where: { accepted: true, OR: [{ requesterId: me }, { addresseeId: me }] },
+    select: { requesterId: true, addresseeId: true },
+  });
+  const friendIds = friendships.map((f) => (f.requesterId === me ? f.addresseeId : f.requesterId));
+
+  const checkIns = await prisma.checkIn.findMany({
+    where: {
+      date: { gte: addDays(today, -6) },
+      goal: { track: { OR: [{ arc: { userId: me } }, { isPublic: true, arc: { userId: { in: friendIds } } }] } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 300,
+    select: {
+      id: true,
+      date: true,
+      note: true,
+      link: true,
+      goal: { select: { title: true, track: { select: { name: true, arc: { select: { userId: true } } } } } },
+    },
+  });
+
+  const users = await prisma.user.findMany({ where: { id: { in: [me, ...friendIds] } }, select: publicUserSelect });
+  const byId = new Map(users.map((u) => [u.id, toPublicUser(u)]));
+  type Entry = { user: ReturnType<typeof toPublicUser>; date: string; items: { id: string; goal: string; track: string; note: string | null; link: string | null }[] };
+  // Newest first, so each card sits where its latest check-in does.
+  const entries = new Map<string, Entry>();
+  for (const c of checkIns) {
+    const userId = c.goal.track.arc.userId;
+    const key = `${userId} ${c.date}`;
+    if (!entries.has(key)) entries.set(key, { user: byId.get(userId)!, date: c.date, items: [] });
+    entries.get(key)!.items.push({ id: c.id, goal: c.goal.title, track: c.goal.track.name, note: c.note, link: c.link });
+  }
+  res.json({ entries: [...entries.values()].slice(0, 40) });
 });
 
 socialRouter.post("/friends", async (req, res) => {

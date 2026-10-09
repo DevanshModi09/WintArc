@@ -4,7 +4,7 @@ import { currentArc } from "../arcs";
 import { ARC_DAYS, addDays, parseToday, seasonStart, weekday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
-import { buildArcView } from "../stats";
+import { buildArcView, isLocked } from "../stats";
 
 const MAX_TRACKS = 8;
 const MAX_GOALS_PER_TRACK = 10;
@@ -59,15 +59,38 @@ const createArcSchema = z.object({
 
 const checkInSchema = z.object({ done: z.boolean() });
 
+// An empty optional field is stored as null rather than "".
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((value) => value || null);
+
+const proofSchema = z.object({
+  note: optionalText(200),
+  link: optionalText(300).refine((v) => v === null || /^https?:\/\/\S+\.\S+$/.test(v), "Link must be a web address"),
+});
+
+const LOCKED = "This is locked in for the arc. You can add more, but not take it back.";
+
+// Reflections ride along with the owner's arc and nowhere else, so nobody
+// else's view can ever include them.
 async function arcResponse(userId: string, today: string) {
   const arc = await currentArc(userId);
-  return { arc: arc ? buildArcView(arc, today) : null };
+  if (!arc) return { arc: null };
+  const reflections = await prisma.reflection.findMany({
+    where: { arcId: arc.id },
+    orderBy: { date: "asc" },
+    select: { date: true, text: true },
+  });
+  return { arc: { ...buildArcView(arc, today), reflections } };
 }
 
 async function ownedTrack(userId: string, trackId: string) {
   const track = await prisma.track.findFirst({
     where: { id: trackId, arc: { userId } },
-    include: { arc: true, _count: { select: { goals: true, checkpoints: true } } },
+    include: { arc: true, goals: { select: { startsOn: true } }, _count: { select: { goals: true, checkpoints: true } } },
   });
   if (!track) throw new HttpError(404, "Track not found");
   return track;
@@ -159,6 +182,11 @@ arcRouter.patch("/tracks/:id", async (req, res) => {
   // A reminder counts back from the start time, so it can't outlive it.
   const startTime = changes.startTime === undefined ? track.startTime : changes.startTime;
   if (startTime === null) changes.reminder = null;
+  // Once the arc is running a track can gain days but not lose them.
+  const dropsDay = changes.days && track.days.some((d) => !changes.days!.includes(d));
+  if (dropsDay && today >= track.arc.startDate) {
+    throw new HttpError(400, "Your arc is running, so you can add days to a track but not drop them.");
+  }
   await prisma.track.update({ where: { id: track.id }, data: changes });
   res.json(await arcResponse(res.locals.userId, today));
 });
@@ -166,6 +194,7 @@ arcRouter.patch("/tracks/:id", async (req, res) => {
 arcRouter.delete("/tracks/:id", async (req, res) => {
   const today = parseToday(req.query.today);
   const track = await ownedTrack(res.locals.userId, req.params.id);
+  if (track.goals.some((g) => isLocked(g, today))) throw new HttpError(400, LOCKED);
   await prisma.track.delete({ where: { id: track.id } });
   res.json(await arcResponse(res.locals.userId, today));
 });
@@ -185,6 +214,7 @@ arcRouter.patch("/goals/:id", async (req, res) => {
   const today = parseToday(req.body?.today);
   const changes = goalSchema.pick({ title: true }).parse(req.body);
   const goal = await ownedGoal(res.locals.userId, req.params.id);
+  if (isLocked(goal, today)) throw new HttpError(400, LOCKED);
   await prisma.goal.update({ where: { id: goal.id }, data: changes });
   res.json(await arcResponse(res.locals.userId, today));
 });
@@ -192,6 +222,7 @@ arcRouter.patch("/goals/:id", async (req, res) => {
 arcRouter.delete("/goals/:id", async (req, res) => {
   const today = parseToday(req.query.today);
   const goal = await ownedGoal(res.locals.userId, req.params.id);
+  if (isLocked(goal, today)) throw new HttpError(400, LOCKED);
   await prisma.goal.delete({ where: { id: goal.id } });
   res.json(await arcResponse(res.locals.userId, today));
 });
@@ -204,6 +235,31 @@ arcRouter.put("/goals/:id/checkin", async (req, res) => {
   assertCanCheckIn(goal, today);
   await setCheckIn(goal.id, today, done);
   await prisma.subtask.updateMany({ where: { goalId: goal.id }, data: { doneOn: done ? today : null } });
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+// Proof goes on today's check-in, so the goal has to be ticked first.
+arcRouter.put("/goals/:id/proof", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const proof = proofSchema.parse(req.body);
+  const goal = await ownedGoal(res.locals.userId, req.params.id);
+  const { count } = await prisma.checkIn.updateMany({ where: { goalId: goal.id, date: today }, data: proof });
+  if (count === 0) throw new HttpError(400, "Tick the goal first, then add your proof");
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+// One line about today. Saving an empty one removes it.
+arcRouter.put("/arc/reflection", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { text } = z.object({ text: z.string().trim().max(280) }).parse(req.body);
+  const arc = await currentArc(res.locals.userId);
+  if (!arc) throw new HttpError(404, "Start an arc first");
+  if (today < arc.startDate || today > arc.endDate) {
+    throw new HttpError(400, today < arc.startDate ? "Your arc hasn't started yet" : "This arc is over");
+  }
+  const where = { arcId_date: { arcId: arc.id, date: today } };
+  if (text) await prisma.reflection.upsert({ where, create: { arcId: arc.id, date: today, text }, update: { text } });
+  else await prisma.reflection.deleteMany({ where: { arcId: arc.id, date: today } });
   res.json(await arcResponse(res.locals.userId, today));
 });
 
@@ -243,6 +299,7 @@ arcRouter.put("/subtasks/:id/check", async (req, res) => {
 arcRouter.delete("/subtasks/:id", async (req, res) => {
   const today = parseToday(req.query.today);
   const { subtask, goal } = await ownedSubtask(res.locals.userId, req.params.id);
+  if (isLocked(goal, today)) throw new HttpError(400, LOCKED);
   await prisma.subtask.delete({ where: { id: subtask.id } });
   // Removing the last unticked one can finish the goal.
   const left = goal.subtasks.filter((s) => s.id !== subtask.id);

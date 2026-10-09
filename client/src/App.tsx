@@ -5,6 +5,8 @@ import { api, type User } from './api'
 import { ErrorNote, Loading } from './components/ArcParts'
 import { Layout } from './components/Layout'
 import { AuthPage } from './pages/AuthPage'
+import { Board } from './pages/Board'
+import { Commitment } from './pages/Commitment'
 import { Friends } from './pages/Friends'
 import { Onboarding } from './pages/Onboarding'
 import { Profile } from './pages/Profile'
@@ -33,6 +35,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/signup" element={<AuthPage mode="signup" />} />
+          <Route path="/c/:username" element={<Commitment />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       )}
@@ -66,12 +69,15 @@ function SignedIn() {
     return <Onboarding suggestedName={me.suggestedName} onDone={(user) => setMe({ ...me, user })} />
   }
 
+  const user = me.user
   return (
     <Routes>
-      <Route element={<Layout user={me.user} />}>
-        <Route index element={<Today />} />
+      <Route path="c/:username" element={<Commitment signedIn />} />
+      <Route element={<Layout user={user} />}>
+        <Route index element={<Today user={user} onUser={(next) => setMe({ ...me, user: next })} />} />
+        <Route path="board" element={<Board />} />
         <Route path="tracks" element={<Tracks />} />
-        <Route path="wrapped" element={<Wrapped user={me.user} />} />
+        <Route path="wrapped" element={<Wrapped user={user} />} />
         <Route path="friends" element={<Friends />} />
         <Route path="u/:username" element={<Profile />} />
         <Route path="*" element={<Navigate to="/" replace />} />
