@@ -10,6 +10,14 @@ import { defaultSchedule, scheduleSummary, weeklyPlan } from '../schedule'
 
 const emptyTrack = (): NewTrack => ({ name: '', isPublic: true, checkpoints: [], ...defaultSchedule() })
 
+// Days from today up to and including `date`.
+const daysUntil = (date: string) => {
+  const [y, m, d] = date.split('-').map(Number)
+  const now = new Date()
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  return Math.round((new Date(y, m - 1, d).getTime() - midnight) / 86_400_000) + 1
+}
+
 const longDate = (date: string) => {
   const [y, m, d] = date.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
@@ -51,7 +59,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   return (
     <>
       <AnimatePresence>
-        {pledging && <Pledge tracks={tracks} ends={longDate(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
+        {pledging && <Pledge tracks={tracks} ends={longDate(season.endDate)} days={daysUntil(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
       </AnimatePresence>
       <form onSubmit={submit} className="space-y-8">
         <header className="max-w-[640px]">
@@ -144,15 +152,15 @@ const TERMS = [
   "My arc starts today and runs until {ends}. I can't pause it or end it early.",
   'Every day a track runs, I commit with a message and a photo of the work. No commit means the day is missed, and one missed day takes me off the board.',
   "My tracks and their checkpoints are final. I can add more later, but I can't remove or change them.",
-  "I've planned for my worst week, not my best. I can keep this up when I'm tired, busy or not in the mood.",
+  "I've planned for my worst week, not my best. I can find {weekly} every week, even when I'm tired, busy or not in the mood.",
 ]
 
-type PledgeProps = { tracks: NewTrack[]; ends: string; onConfirm: () => void; onCancel: () => void }
+type PledgeProps = { tracks: NewTrack[]; ends: string; days: number; onConfirm: () => void; onCancel: () => void }
 
 // The last thing before an arc exists, in two steps. First the terms, each
 // ticked off by hand. Then what's being decided, a nudge to keep it
 // realistic, and a line to type out so nobody commits by accident.
-function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
+function Pledge({ tracks, ends, days, onConfirm, onCancel }: PledgeProps) {
   const [typed, setTyped] = useState('')
   // Capitals and stray spaces don't matter; the words do.
   const matches = typed.trim().replace(/\s+/g, ' ').toLowerCase() === PLEDGE
@@ -162,6 +170,20 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
   const [step, setStep] = useState<1 | 2>(1)
   const [agreed, setAgreed] = useState<boolean[]>(TERMS.map(() => false))
   const allAgreed = agreed.every(Boolean)
+
+  // The size of the promise, in hours: each week, each day on average, and
+  // added up over every day from now to the end.
+  const weekly = tracks.reduce((sum, t) => sum + t.days.length * t.minutes, 0)
+  const hours = (minutes: number) => {
+    const h = Math.floor(minutes / 60)
+    const m = Math.round(minutes % 60)
+    return [h && `${h}h`, m && `${m}m`].filter(Boolean).join(' ') || '0h'
+  }
+  const commitment = [
+    { value: hours(weekly), label: 'every week' },
+    { value: hours(weekly / 7), label: 'a day on average' },
+    { value: `${Math.round(((weekly / 7) * days) / 60)}h`, label: `in total, over ${days} days` },
+  ]
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -209,6 +231,18 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
                 This isn't a to-do list you can quietly drop next week. Read each line, and tick it only if you mean it.
               </p>
 
+              <div>
+                <div className="label">You're committing to</div>
+                <dl className="mt-2 grid grid-cols-3 gap-2">
+                  {commitment.map((c, i) => (
+                    <div key={c.label} className={`rounded-field px-3 py-3 ${i === 0 ? 'bg-accent/15' : 'bg-subtle'}`}>
+                      <dd className="text-xl leading-none font-medium whitespace-nowrap">{c.value}</dd>
+                      <dt className="label mt-1.5 text-[12px] leading-tight">{c.label}</dt>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
               <ul className="space-y-2.5">
                 {TERMS.map((term, i) => (
                   <li key={term}>
@@ -223,7 +257,7 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
                         checked={agreed[i]}
                         onChange={(e) => setAgreed(agreed.map((a, j) => (j === i ? e.target.checked : a)))}
                       />
-                      <span>{term.replace('{ends}', ends)}</span>
+                      <span>{term.replace('{ends}', ends).replace('{weekly}', hours(weekly))}</span>
                     </label>
                   </li>
                 ))}
@@ -267,7 +301,7 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
               <section className="space-y-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <h3 className="font-medium">Winter Arc</h3>
-                  <span className="label">{weeklyPlan(tracks)} a week</span>
+                  <span className="font-medium">{weeklyPlan(tracks)} <span className="label font-normal">a week</span></span>
                 </div>
                 <ul className="divide-y divide-line rounded-field border border-line text-[14px]">
                   {tracks.map((track, i) => (
