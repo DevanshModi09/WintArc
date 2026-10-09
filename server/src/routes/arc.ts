@@ -32,9 +32,13 @@ const trackSchema = z.object({
 
 // A track's checkpoints are fixed the moment it's created: they can be ticked
 // and reordered afterwards, but never added to, reworded or removed. So the
-// whole list comes in with the track.
+// whole list comes in with the track, and there has to be at least one:
+// a track with nothing to reach has nothing to work on.
 const newTrackSchema = trackSchema.extend({
-  checkpoints: z.array(checkpointTitle).max(MAX_CHECKPOINTS_PER_TRACK).default([]),
+  checkpoints: z
+    .array(checkpointTitle, "Add at least one checkpoint to the track")
+    .min(1, "Add at least one checkpoint to the track")
+    .max(MAX_CHECKPOINTS_PER_TRACK),
 });
 
 // The shape Prisma wants for a new track's checkpoints, in the order given.

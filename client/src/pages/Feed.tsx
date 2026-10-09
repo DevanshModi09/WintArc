@@ -1,3 +1,4 @@
+import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, today, type FeedEntry } from '../api'
@@ -50,7 +51,14 @@ export function Feed() {
       <ol className="space-y-3">
         {entries?.flatMap((entry) =>
           entry.items.map((item) => (
-            <li key={item.id} className="card flex gap-3 p-4">
+            <motion.li
+              key={item.id}
+              className="card flex gap-3 p-4"
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+            >
               <Link to={`/u/${entry.user.username}`} className="shrink-0">
                 <Avatar user={entry.user} />
               </Link>
@@ -67,7 +75,7 @@ export function Feed() {
                 </blockquote>
                 {item.checkpoint && <p className="label mt-2 truncate">Working on {item.checkpoint}</p>}
               </div>
-            </li>
+            </motion.li>
           )),
         )}
       </ol>

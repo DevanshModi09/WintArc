@@ -4,6 +4,7 @@ import { api, today, type Arc, type ArcResponse, type Season, type Track, type U
 import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
 import { ActivityGrid, ErrorNote, LevelBar, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
+import { Rise } from '../components/Motion'
 import { ProofPhoto } from '../components/ProofPhoto'
 import { uploadProof } from '../proof'
 import { scheduleSummary, weeklyPlan } from '../schedule'
@@ -142,8 +143,10 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               </span>
             )}
           </div>
-          {arc.tracks.map((track) => (
-            <TrackCard key={track.id} track={track} open={!arc.isOver} run={run} />
+          {arc.tracks.map((track, i) => (
+            <Rise key={track.id} index={i}>
+              <TrackCard track={track} open={!arc.isOver} run={run} />
+            </Rise>
           ))}
           {!arc.isOver && (
             <Link to="/tracks" className="btn-outline">

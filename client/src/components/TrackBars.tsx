@@ -2,6 +2,7 @@ import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 
 import { useEffect } from 'react'
 import type { Track } from '../api'
 import { trackProgress } from '../arcStats'
+import { ProgressBar } from './Motion'
 
 const EASE = [0.2, 0.7, 0.2, 1] as const
 const SECONDS = 0.9
@@ -17,20 +18,6 @@ function CountUp({ to, delay }: { to: number; delay: number }) {
     return () => controls.stop()
   }, [to, delay, still, value])
   return <motion.span>{shown}</motion.span>
-}
-
-function Bar({ percent, delay, label }: { percent: number; delay: number; label: string }) {
-  const still = useReducedMotion()
-  return (
-    <div className="h-2 overflow-hidden rounded-full bg-cell" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-      <motion.div
-        className="h-full rounded-full bg-accent"
-        initial={{ width: still ? `${percent}%` : 0 }}
-        animate={{ width: `${percent}%` }}
-        transition={{ duration: SECONDS, delay, ease: EASE }}
-      />
-    </div>
-  )
 }
 
 // "Devansh has 4 tracks", then how far along each one is: a bar per track
@@ -68,7 +55,7 @@ export function TrackBars({ name, tracks, own }: { name: string; tracks: Track[]
                 <span className="min-w-0 flex-1 truncate font-medium">{track.name}</span>
                 <span className="font-medium tabular-nums">{progress === null ? '–' : <CountUp to={progress} delay={delay} />}</span>
               </div>
-              <Bar percent={progress ?? 0} delay={delay} label={`${track.name} progress`} />
+              <ProgressBar percent={progress ?? 0} delay={delay} label={`${track.name} progress`} className="h-2" fill="bg-accent" />
               <p className="label truncate">
                 {progress === null
                   ? `No checkpoints · ${track.total} ${track.total === 1 ? 'day' : 'days'} done`

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Survivors } from '../api'
 import { Avatar, ErrorNote, Loading } from '../components/ArcParts'
+import { ProgressBar } from '../components/Motion'
 import { useTitle } from '../useTitle'
 
 const longDate = (date: string) => {
@@ -43,16 +44,7 @@ export function Board() {
       </header>
 
       {started > 0 && (
-        <div
-          className="h-1.5 overflow-hidden rounded-full bg-cell"
-          role="progressbar"
-          aria-label="Share of people still standing"
-          aria-valuemin={0}
-          aria-valuemax={started}
-          aria-valuenow={standing}
-        >
-          <div className="h-full bg-fg" style={{ width: `${(standing / started) * 100}%` }} />
-        </div>
+        <ProgressBar percent={(standing / started) * 100} label="Share of people still standing" />
       )}
 
       {survivors.length === 0 ? (

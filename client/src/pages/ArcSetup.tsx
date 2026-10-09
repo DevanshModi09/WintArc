@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 import { api, type Arc, type NewTrack, type Season } from '../api'
 import { ErrorNote, Lock } from '../components/ArcParts'
@@ -25,7 +26,8 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   const setTrack = (i: number, changes: Partial<NewTrack>) =>
     setTracks(tracks.map((t, j) => (j === i ? { ...t, ...changes } : t)))
 
-  const ready = tracks.every((t) => t.name.trim())
+  // Every track needs a name and at least one checkpoint to aim for.
+  const ready = tracks.every((t) => t.name.trim() && t.checkpoints.length > 0)
 
   // Creating the arc is a two-step thing: the button opens the pledge, and
   // only typing it out creates anything.
@@ -48,13 +50,15 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
 
   return (
     <>
-      {pledging && <Pledge tracks={tracks} ends={longDate(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
+      <AnimatePresence>
+        {pledging && <Pledge tracks={tracks} ends={longDate(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
+      </AnimatePresence>
       <form onSubmit={submit} className="space-y-8">
         <header className="max-w-[640px]">
           <h1 className="text-[40px] leading-none font-medium">Set up your arc</h1>
           <p className="mt-2 text-muted">
             Split it into tracks like Web Dev, DSA or Badminton. Pick the days each one runs on and the checkpoints you
-            want to reach in it. Each day a track runs, your task is the checkpoint you're on: you check in with a
+            want to reach in it. Every track needs at least one. Each day a track runs, your task is the checkpoint you're on: you check in with a
             photo of the work, and finish the checkpoint to move to the next.
           </p>
         </header>
@@ -122,6 +126,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
             <button className="btn w-full" disabled={busy || !ready}>
               Create my arc
             </button>
+            {!ready && <p className="label">Give every track a name and at least one checkpoint to create your arc.</p>}
           </div>
           <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
             <DayPlan tracks={tracks} />
@@ -149,11 +154,19 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
   }
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
     >
-      <form
+      <motion.form
+        initial={{ opacity: 0, y: 16, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
         onSubmit={submit}
         role="dialog"
         aria-modal="true"
@@ -255,7 +268,7 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
             Create my arc
           </button>
         </div>
-      </form>
-    </div>
+      </motion.form>
+    </motion.div>
   )
 }

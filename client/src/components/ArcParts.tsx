@@ -1,6 +1,8 @@
+import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { LOGO_BOX, LOGO_PATH } from '../logo'
 import { today, type Arc, type PublicUser } from '../api'
+import { ProgressBar } from './Motion'
 
 export function Logo() {
   return (
@@ -38,7 +40,8 @@ export function Checkbox({ checked }: { checked: boolean }) {
     >
       {checked && (
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 6 9 17l-5-5" />
+          {/* The tick draws itself in. */}
+          <motion.path d="M20 6 9 17l-5-5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.25, ease: 'easeOut' }} />
         </svg>
       )}
     </span>
@@ -191,9 +194,7 @@ export function LevelBar({ arc }: { arc: Arc }) {
           {level.xpIntoLevel}/{level.xpPerLevel} XP
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-cell">
-        <div className="h-full bg-fg" style={{ width: `${(level.xpIntoLevel / level.xpPerLevel) * 100}%` }} />
-      </div>
+      <ProgressBar percent={(level.xpIntoLevel / level.xpPerLevel) * 100} label={`Progress to level ${level.number + 1}`} />
       <p className="label">+10 XP per check-in · +20 for a perfect day · bonus XP for each reward</p>
     </section>
   )

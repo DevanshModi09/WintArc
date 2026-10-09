@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { motion } from 'motion/react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { User } from '../api'
 import { supabase } from '../supabase'
 import { Logo } from './ArcParts'
@@ -10,6 +11,7 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 
 export function Layout({ user }: { user: User }) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
 
@@ -80,7 +82,10 @@ export function Layout({ user }: { user: User }) {
         )}
       </nav>
       <main className="mx-auto max-w-[1040px] px-4 py-10 sm:px-8">
-        <Outlet context={{ setFocused } satisfies LayoutContext} />
+        {/* Keyed by address, so every page eases in as you arrive on it. */}
+        <motion.div key={pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }}>
+          <Outlet context={{ setFocused } satisfies LayoutContext} />
+        </motion.div>
       </main>
     </>
   )

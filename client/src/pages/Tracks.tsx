@@ -5,6 +5,7 @@ import { trackProgress } from '../arcStats'
 import { Checkbox, ErrorNote, Loading } from '../components/ArcParts'
 import { CheckpointList, CheckpointWarning } from '../components/CheckpointList'
 import { CommitLog } from '../components/CommitLog'
+import { ProgressBar, Rise } from '../components/Motion'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
 import { scheduleSummary } from '../schedule'
@@ -93,16 +94,7 @@ export function Tracks() {
             </div>
           </div>
         </div>
-        <div
-          className="mt-4 h-1.5 overflow-hidden rounded-full bg-cell"
-          role="progressbar"
-          aria-label="All checkpoints finished"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={overall ?? 0}
-        >
-          <div className="h-full bg-fg transition-[width]" style={{ width: `${overall ?? 0}%` }} />
-        </div>
+        <ProgressBar percent={overall ?? 0} label="All checkpoints finished" className="mt-4 h-1.5" />
         <p className="mt-4 text-muted">
           Each track's name, when it runs, and its checkpoints. The first unfinished checkpoint in a track is the one
           you're on, and it's what you check in against on Today. Checkpoints are fixed when a track is created, so
@@ -112,15 +104,16 @@ export function Tracks() {
 
       <ErrorNote message={error} />
 
-      {arc.tracks.map((track) => (
-        <TrackProgress
-          key={track.id}
-          track={track}
-          editable={!arc.isOver}
-          run={run}
-          tick={(id, done) => run(() => api.tickCheckpoint(id, done), withCheckpoint(arc, id, done))}
-          reorder={(ids) => run(() => api.reorderCheckpoints(track.id, ids), withOrder(arc, track.id, ids))}
-        />
+      {arc.tracks.map((track, i) => (
+        <Rise key={track.id} index={i}>
+          <TrackProgress
+            track={track}
+            editable={!arc.isOver}
+            run={run}
+            tick={(id, done) => run(() => api.tickCheckpoint(id, done), withCheckpoint(arc, id, done))}
+            reorder={(ids) => run(() => api.reorderCheckpoints(track.id, ids), withOrder(arc, track.id, ids))}
+          />
+        </Rise>
       ))}
       {!arc.isOver && <NewTrack run={run} />}
     </div>
@@ -136,7 +129,7 @@ function NewTrack({ run }: { run: Run }) {
   function submit(e: FormEvent) {
     e.preventDefault()
     const trimmed = name.trim()
-    if (!trimmed) return
+    if (!trimmed || checkpoints.length === 0) return
     run(() => api.addTrack({ name: trimmed, isPublic, checkpoints }))
     setName('')
     setCheckpoints([])
@@ -178,9 +171,9 @@ function NewTrack({ run }: { run: Run }) {
         <CheckpointList value={checkpoints} onChange={setCheckpoints} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button className="btn" disabled={!name.trim()}>
+        <button className="btn" disabled={!name.trim() || checkpoints.length === 0}>
           {checkpoints.length === 0
-            ? 'Create track with no checkpoints'
+            ? 'Add a checkpoint to create'
             : `Create track with ${checkpoints.length} ${checkpoints.length === 1 ? 'checkpoint' : 'checkpoints'}`}
         </button>
         <button type="button" className="btn-outline" onClick={() => setOpen(false)}>
@@ -296,16 +289,7 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
           </button>
           <span className="font-mono text-xl font-semibold">{progress === null ? '–' : `${progress}%`}</span>
         </div>
-        <div
-          className="h-1.5 overflow-hidden rounded-full bg-cell"
-          role="progressbar"
-          aria-label={`${track.name} completed`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress ?? 0}
-        >
-          <div className="h-full bg-fg transition-[width]" style={{ width: `${progress ?? 0}%` }} />
-        </div>
+        <ProgressBar percent={progress ?? 0} label={`${track.name} completed`} />
         <p className="label">
           {progress === null
             ? 'This track was created without checkpoints.'
