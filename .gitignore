@@ -6,3 +6,5 @@ server/generated
 
 # Supabase CLI local state
 supabase/.temp
+.vercel
+.env*
