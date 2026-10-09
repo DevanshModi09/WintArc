@@ -1,25 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorNote, Logo } from '../components/ArcParts'
 import { renderGoogleButton } from '../googleSignIn'
-import { signInWithGoogle, supabase } from '../supabase'
-
-const COPY = {
-  login: {
-    title: 'Log in to WintArc',
-    submit: 'Log in',
-    switchText: "Don't have an account?",
-    switchLink: 'Sign up',
-    switchTo: '/signup',
-  },
-  signup: {
-    title: 'Create your account',
-    submit: 'Sign up',
-    switchText: 'Already have an account?',
-    switchLink: 'Log in',
-    switchTo: '/login',
-  },
-}
+import { signInWithGoogle } from '../supabase'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -119,32 +102,11 @@ function Pitch({ eyebrow, slides }: { eyebrow: string; slides: { headline: strin
   )
 }
 
-export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
-  const copy = COPY[mode]
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+// The one page for someone who isn't signed in: the pitch, and the way in.
+// Google is the only way to sign in, so there is no password to forget and
+// no confirmation email to wait for.
+export function AuthPage() {
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setNotice('')
-    setBusy(true)
-    const { data, error } =
-      mode === 'signup'
-        ? await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: window.location.origin },
-          })
-        : await supabase.auth.signInWithPassword({ email, password })
-    setBusy(false)
-    if (error) setError(error.message)
-    // With email confirmation on, sign-up returns no session until the link is clicked.
-    else if (!data.session) setNotice(`Check ${email} for a link to confirm your account.`)
-  }
 
   async function google() {
     setError('')
@@ -178,60 +140,19 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
       </section>
 
       <section>
-        <h2 className="h2">{copy.title}</h2>
+        <h2 className="h2">Get in</h2>
+        <p className="mt-2 text-muted">Sign in with your Google account. New here? The same button creates your account.</p>
 
         <div className="mt-6 space-y-4">
-        <form onSubmit={submit} className="space-y-3">
-          <label className="block space-y-1.5">
-            <span className="label">Email</span>
-            <input
-              className="input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="label">Password</span>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              minLength={mode === 'signup' ? 8 : undefined}
-              required
-            />
-          </label>
           <ErrorNote message={error} />
-          {notice && <p className="rounded-[20px] border border-line bg-subtle px-4 py-2.5">{notice}</p>}
-          <button className="btn w-full" disabled={busy}>
-            {copy.submit}
-          </button>
-        </form>
-
-        <div className="flex items-center gap-3 font-mono text-xs text-muted">
-          <span className="h-px flex-1 bg-line" />
-          or
-          <span className="h-px flex-1 bg-line" />
+          <GoogleSignIn onError={setError}>
+            <button className="btn-outline w-full gap-2.5" onClick={google}>
+              <GoogleMark />
+              Continue with Google
+            </button>
+          </GoogleSignIn>
         </div>
 
-        <GoogleSignIn onError={setError}>
-          <button className="btn-outline w-full gap-2.5" onClick={google}>
-            <GoogleMark />
-            Continue with Google
-          </button>
-        </GoogleSignIn>
-      </div>
-
-        <p className="mt-6 text-muted">
-          {copy.switchText}{' '}
-          <Link to={copy.switchTo} className="font-medium text-fg hover:underline">
-            {copy.switchLink}
-          </Link>
-        </p>
         <p className="label mt-6">
           By continuing you agree to the{' '}
           <Link to="/terms" className="underline underline-offset-2 hover:text-fg">
