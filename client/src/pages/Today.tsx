@@ -4,7 +4,8 @@ import { api, today, type Arc, type ArcResponse, type Season, type Track, type U
 import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
 import { ActivityGrid, ErrorNote, LevelBar, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
-import { proofUrl, uploadProof } from '../proof'
+import { ProofPhoto } from '../components/ProofPhoto'
+import { uploadProof } from '../proof'
 import { scheduleSummary, weeklyPlan } from '../schedule'
 import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
@@ -305,8 +306,6 @@ function SharePage({ user, onUser }: { user: User; onUser: (user: User) => void 
 function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
-  // Whether friends will see the photo. A private track's never reach them anyway.
-  const [shared, setShared] = useState(track.proof?.shared ?? true)
   const [finishing, setFinishing] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const progress = trackProgress(track)
@@ -320,41 +319,11 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
     if (!file) return
     setBusy(true)
     await run(async () =>
-      api.checkIn(track.id, { photo: await uploadProof(file), note: note.trim() || (track.proof?.note ?? ''), photoPublic: shared }),
+      api.checkIn(track.id, { photo: await uploadProof(file), note: note.trim() || (track.proof?.note ?? '') }),
     )
     setNote('')
     setBusy(false)
   }
-
-  // Changes who sees a photo that's already up, without uploading it again.
-  function share(next: boolean) {
-    setShared(next)
-    const { proof } = track
-    if (proof) run(() => api.checkIn(track.id, { photo: proof.photo, note: proof.note ?? '', photoPublic: next }))
-  }
-
-  const visibility = track.isPublic && (
-    <div className="flex items-center gap-1.5 text-[13px]" role="group" aria-label="Who sees the photo">
-      <span className="label mr-1">Photo visible to</span>
-      {[
-        { value: true, label: 'Friends' },
-        { value: false, label: 'Only me' },
-      ].map((option) => (
-        <button
-          key={option.label}
-          type="button"
-          className={`h-7 rounded-full border px-3 transition ${
-            shared === option.value ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg'
-          }`}
-          aria-pressed={shared === option.value}
-          disabled={busy}
-          onClick={() => share(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  )
 
   let kicker = "Today's session"
   if (track.complete) kicker = 'Every checkpoint finished'
@@ -383,13 +352,11 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
 
         {track.doneToday && track.proof ? (
           <div className="flex flex-wrap items-center gap-4">
-            <a href={proofUrl(track.proof.photo)} target="_blank" rel="noreferrer noopener" className="shrink-0">
-              <img src={proofUrl(track.proof.photo)} alt="Today's proof" className="size-20 rounded-field object-cover" />
-            </a>
+            <ProofPhoto path={track.proof.photo} alt="Today's proof" className="size-20 rounded-field" />
             <div className="min-w-0 flex-1">
               <div className="font-medium">Checked in today</div>
               {track.proof.note && <p className="label mt-0.5 break-words">{track.proof.note}</p>}
-              {open && <div className="mt-2">{visibility}</div>}
+              <p className="label mt-1">Only you can see this photo.</p>
             </div>
             {open && (
               <button className="label hover:text-fg" disabled={busy} onClick={() => fileInput.current?.click()}>
@@ -412,7 +379,7 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
             <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>
               {busy ? 'Uploading…' : 'Upload photo to check in'}
             </button>
-            <div className="w-full">{visibility}</div>
+            <p className="label w-full">Your photo stays private. Friends see that you checked in, not the photo.</p>
           </div>
         )}
       </div>

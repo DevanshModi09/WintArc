@@ -151,14 +151,14 @@ test("a track locks the day after it was added", () => {
 test("proof is today's photo, and only when there is one", () => {
   const g = { ...goal("g", []), checkIns: [{ date: "2026-11-01", note: "old", photo: "u/a.jpg" }, { date: "2026-11-02", note: "shipped auth", photo: "u/b.jpg" }] };
   const view = buildArcView(arc(track("t", [g])), "2026-11-02");
-  assert.deepEqual(view.tracks[0].proof, { photo: "u/b.jpg", note: "shipped auth", shared: true });
+  assert.deepEqual(view.tracks[0].proof, { photo: "u/b.jpg", note: "shipped auth" });
   assert.equal(view.tracks[0].doneToday, true);
   assert.equal(buildArcView(arc(track("t", [goal("g", ["2026-11-02"])])), "2026-11-02").tracks[0].proof, null);
 });
 
-test("a photo kept private is only in the owner's view", () => {
-  const g = { ...goal("g", []), checkIns: [{ date: "2026-11-02", note: null, photo: "u/b.jpg", photoPublic: false }] };
-  assert.deepEqual(buildArcView(arc(track("t", [g])), "2026-11-02").tracks[0].proof, { photo: "u/b.jpg", note: null, shared: false });
+test("a proof photo is only ever in the owner's view", () => {
+  const g = { ...goal("g", []), checkIns: [{ date: "2026-11-02", note: null, photo: "u/b.jpg" }] };
+  assert.deepEqual(buildArcView(arc(track("t", [g])), "2026-11-02").tracks[0].proof, { photo: "u/b.jpg", note: null });
   const others = buildArcView(arc(track("t", [g])), "2026-11-02", { publicOnly: true }).tracks[0];
   assert.equal(others.proof, null);
   assert.equal(others.doneToday, true);

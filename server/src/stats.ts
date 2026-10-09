@@ -33,7 +33,7 @@ type GoalInput = {
   title: string;
   emoji: string | null;
   startsOn: string;
-  checkIns: { date: string; note?: string | null; photo?: string | null; photoPublic?: boolean }[];
+  checkIns: { date: string; note?: string | null; photo?: string | null }[];
   subtasks: { id: string; title: string; doneOn: string | null }[];
 };
 
@@ -206,13 +206,9 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
           active: next === -1 ? null : { id: t.checkpoints[next].id, title: t.checkpoints[next].title, number: next + 1 },
           complete,
           doneToday,
-          // Today's proof: the photo's path in storage, the line with it, and
-          // whether friends get to see the photo. A photo kept private is left
-          // out for everyone but its owner.
-          proof:
-            checkIn?.photo && (checkIn.photoPublic !== false || !opts.publicOnly)
-              ? { photo: checkIn.photo, note: checkIn.note ?? null, shared: checkIn.photoPublic !== false }
-              : null,
+          // Today's proof: the photo's path in storage and the line with it.
+          // Photos are private, so this is only ever in the owner's own view.
+          proof: checkIn?.photo && !opts.publicOnly ? { photo: checkIn.photo, note: checkIn.note ?? null } : null,
           // How many days a check-in was made.
           total: new Set(t.goals.flatMap((g) => g.checkIns.map((c) => c.date)).filter((d) => dates.includes(d))).size,
           streak: summarize(t.goals, dates, todayInArc).streak,

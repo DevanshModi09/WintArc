@@ -25,6 +25,8 @@ model User {
   // Off by default: turns on the commitment page anyone can open without an
   // account, at /c/<username>.
   sharePublic  Boolean  @default(false)
+  // Admins can look through everyone's proof photos, and nothing else extra.
+  isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
   arcs         Arc[]
   sentRequests     Friendship[] @relation("requester")
@@ -144,11 +146,9 @@ model CheckIn {
   checkpointId String?
   checkpoint   Checkpoint? @relation(fields: [checkpointId], references: [id], onDelete: SetNull)
   // Proof of the work: the path of a photo in the "proofs" storage bucket,
-  // and optionally a line about it.
+  // and optionally a line about it. The photo is private: only its owner and
+  // an admin can ever open it.
   photo     String?
-  // Whether friends see the photo in their feed, or only its owner does. The
-  // check-in itself shows either way.
-  photoPublic Boolean @default(true)
   note      String?
   link      String?
   createdAt DateTime @default(now())

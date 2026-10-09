@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { api, type User } from './api'
 import { ErrorNote, Loading } from './components/ArcParts'
 import { Layout } from './components/Layout'
+import { Admin } from './pages/Admin'
 import { AuthPage } from './pages/AuthPage'
 import { Board } from './pages/Board'
 import { Commitment } from './pages/Commitment'
@@ -81,6 +82,7 @@ function SignedIn() {
       <Route element={<Layout user={user} />}>
         <Route index element={<Today user={user} onUser={(next) => setMe({ ...me, user: next })} />} />
         <Route path="board" element={<Board />} />
+        {user.isAdmin && <Route path="admin" element={<Admin />} />}
         <Route path="tracks" element={<Tracks />} />
         <Route path="wrapped" element={<Wrapped user={user} />} />
         <Route path="friends" element={<Friends />} />

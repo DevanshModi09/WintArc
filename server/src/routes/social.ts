@@ -167,7 +167,7 @@ socialRouter.get("/survivors", async (req, res) => {
 });
 
 // The last week of work from you and your friends, a card per person per day.
-// Friends' private tracks never appear.
+// Friends' private tracks never appear, and nor does anyone's photo.
 socialRouter.get("/feed", async (req, res) => {
   const today = parseToday(req.query.today);
   const me: string = res.locals.userId;
@@ -188,8 +188,6 @@ socialRouter.get("/feed", async (req, res) => {
       id: true,
       date: true,
       note: true,
-      photo: true,
-      photoPublic: true,
       checkpoint: { select: { title: true } },
       goal: { select: { track: { select: { name: true, arc: { select: { userId: true } } } } } },
     },
@@ -197,7 +195,7 @@ socialRouter.get("/feed", async (req, res) => {
 
   const users = await prisma.user.findMany({ where: { id: { in: [me, ...friendIds] } }, select: publicUserSelect });
   const byId = new Map(users.map((u) => [u.id, toPublicUser(u)]));
-  type Item = { id: string; track: string; checkpoint: string | null; note: string | null; photo: string | null };
+  type Item = { id: string; track: string; checkpoint: string | null; note: string | null };
   type Entry = { user: ReturnType<typeof toPublicUser>; date: string; items: Item[] };
   // Newest first, so each card sits where its latest check-in does.
   const entries = new Map<string, Entry>();
@@ -205,9 +203,8 @@ socialRouter.get("/feed", async (req, res) => {
     const userId = c.goal.track.arc.userId;
     const key = `${userId} ${c.date}`;
     if (!entries.has(key)) entries.set(key, { user: byId.get(userId)!, date: c.date, items: [] });
-    // A photo its owner kept private only ever goes back to them.
-    const photo = c.photoPublic || userId === me ? c.photo : null;
-    entries.get(key)!.items.push({ id: c.id, track: c.goal.track.name, checkpoint: c.checkpoint?.title ?? null, note: c.note, photo });
+    // The proof photo itself is private, so the feed never carries it.
+    entries.get(key)!.items.push({ id: c.id, track: c.goal.track.name, checkpoint: c.checkpoint?.title ?? null, note: c.note });
   }
   res.json({ entries: [...entries.values()].slice(0, 40) });
 });
@@ -246,4 +243,39 @@ socialRouter.delete("/friends/:id", async (req, res) => {
   });
   if (count === 0) throw new HttpError(404, "Friendship not found");
   res.json({ ok: true });
+});
+
+// For admins only: everyone's recent proof photos, newest first, to check that
+// what's being uploaded is what it should be. It returns where each photo is
+// in storage; opening one still needs the admin's own sign-in.
+socialRouter.get("/admin/proofs", async (_req, res) => {
+  const admin = await prisma.user.findUnique({ where: { id: res.locals.userId }, select: { isAdmin: true } });
+  // The same answer as for a page that doesn't exist.
+  if (!admin?.isAdmin) throw new HttpError(404, "Not found");
+  const checkIns = await prisma.checkIn.findMany({
+    where: { photo: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      date: true,
+      note: true,
+      photo: true,
+      createdAt: true,
+      checkpoint: { select: { title: true } },
+      goal: { select: { track: { select: { name: true, isPublic: true, arc: { select: { user: { select: publicUserSelect } } } } } } },
+    },
+  });
+  res.json({
+    proofs: checkIns.map((c) => ({
+      id: c.id,
+      date: c.date,
+      uploadedAt: c.createdAt,
+      note: c.note,
+      photo: c.photo,
+      track: c.goal.track.name,
+      checkpoint: c.checkpoint?.title ?? null,
+      user: toPublicUser(c.goal.track.arc.user),
+    })),
+  });
 });

@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api, today, type ArcSummary, type FeedEntry, type Friends as FriendsData, type PublicUser, type RelationInfo } from '../api'
 import { arcPhase } from '../arcStats'
 import { Avatar, ErrorNote, Loading } from '../components/ArcParts'
-import { proofUrl } from '../proof'
 import { useTitle } from '../useTitle'
 
 type SearchResult = PublicUser & RelationInfo
@@ -85,7 +84,7 @@ const feedDay = (date: string) => {
 }
 
 // The last week of work from you and your friends: which checkpoint each
-// check-in went towards, with its photo.
+// check-in went towards, and the line that went with it. Never the photo.
 function Feed({ entries }: { entries: FeedEntry[] }) {
   return (
     <section className="space-y-3">
@@ -104,11 +103,6 @@ function Feed({ entries }: { entries: FeedEntry[] }) {
           <ul className="divide-y divide-line">
             {entry.items.map((item) => (
               <li key={item.id} className="flex items-center gap-4 px-4 py-3">
-                {item.photo && (
-                  <a href={proofUrl(item.photo)} target="_blank" rel="noreferrer noopener" className="shrink-0">
-                    <img src={proofUrl(item.photo)} alt={`Proof for ${item.track}`} loading="lazy" className="size-16 rounded-field object-cover" />
-                  </a>
-                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-3">
                     <span className="flex-1">{item.checkpoint ?? item.track}</span>

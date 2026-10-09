@@ -42,6 +42,9 @@ export async function uploadProof(file: File): Promise<string> {
   return path
 }
 
-export function proofUrl(path: string) {
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
+// A short-lived link to a photo. The bucket is private, so this only works
+// for the person who uploaded it, or for an admin.
+export async function proofUrl(path: string): Promise<string | null> {
+  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60)
+  return data?.signedUrl ?? null
 }

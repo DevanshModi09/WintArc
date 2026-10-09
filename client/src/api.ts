@@ -4,16 +4,16 @@ import { today } from './today'
 export { today }
 
 export type PublicUser = { id: string; name: string; username: string; avatarUrl: string | null }
-export type User = PublicUser & { email: string; sharePublic: boolean }
+export type User = PublicUser & { email: string; sharePublic: boolean; isAdmin: boolean }
 
 export type Streak = { current: number; best: number }
 export type DayStatus = 'perfect' | 'partial' | 'missed' | 'empty'
 export type Level = { number: number; title: string; xpIntoLevel: number; xpPerLevel: number }
 export type Badge = { days: number; name: string; xp: number; earned: boolean }
 
-// The photo that backs up a day's check-in (its path in storage), the line
-// that went with it, and whether friends see the photo or only its owner.
-export type Proof = { photo: string; note: string | null; shared: boolean }
+// The photo that backs up a day's check-in (its path in storage) and the line
+// that went with it. Photos are private: only you ever get your own back.
+export type Proof = { photo: string; note: string | null }
 
 // When a track runs: weekdays (0 = Sunday), minutes per session, and an
 // optional "HH:MM" start time with a reminder that many minutes before it.
@@ -115,7 +115,19 @@ export type Survivors = {
 export type FeedEntry = {
   user: PublicUser
   date: string
-  items: { id: string; track: string; checkpoint: string | null; note: string | null; photo: string | null }[]
+  items: { id: string; track: string; checkpoint: string | null; note: string | null }[]
+}
+
+// One uploaded proof photo, as an admin sees it.
+export type AdminProof = {
+  id: string
+  date: string
+  uploadedAt: string
+  note: string | null
+  photo: string
+  track: string
+  checkpoint: string | null
+  user: PublicUser
 }
 
 export type Commitment = { user: PublicUser & { bio: string | null }; arc: Arc | null }
@@ -171,7 +183,7 @@ export const api = {
   deleteTrack: (id: string) => request<ArcResponse>('DELETE', `/tracks/${id}?today=${today()}`),
 
   // The day's entry for a track: a photo already uploaded to storage.
-  checkIn: (trackId: string, entry: { photo: string; note: string; photoPublic: boolean }) =>
+  checkIn: (trackId: string, entry: { photo: string; note: string }) =>
     request<ArcResponse>('PUT', `/tracks/${trackId}/checkin`, { ...entry, today: today() }),
   setReflection: (text: string) => request<ArcResponse>('PUT', '/arc/reflection', { text, today: today() }),
 
@@ -189,6 +201,7 @@ export const api = {
   getFeed: () => request<{ entries: FeedEntry[] }>('GET', `/feed?today=${today()}`),
   getCommitment: (username: string) =>
     request<Commitment>('GET', `/public/${encodeURIComponent(username)}?today=${today()}`),
+  getAdminProofs: () => request<{ proofs: AdminProof[] }>('GET', '/admin/proofs'),
   getFriends: () => request<Friends>('GET', `/friends?today=${today()}`),
   addFriend: (username: string) => request<RelationInfo>('POST', '/friends', { username }),
   acceptFriend: (friendshipId: string) =>

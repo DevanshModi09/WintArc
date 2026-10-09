@@ -34,7 +34,7 @@ const editProfileSchema = z.object({
     .transform((tags) => tags.filter((t, i) => tags.findIndex((o) => o.toLowerCase() === t.toLowerCase()) === i)),
 });
 
-const sessionUser = { ...publicUserSelect, email: true, sharePublic: true } as const;
+const sessionUser = { ...publicUserSelect, email: true, sharePublic: true, isAdmin: true } as const;
 
 const MAX_AVATAR_BYTES = 200_000;
 const JPEG_PREFIX = "data:image/jpeg;base64,";

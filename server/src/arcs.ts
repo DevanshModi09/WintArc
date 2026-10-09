@@ -9,7 +9,7 @@ const withProgress = {
       goals: {
         orderBy: { createdAt: "asc" },
         include: {
-          checkIns: { select: { date: true, note: true, photo: true, photoPublic: true } },
+          checkIns: { select: { date: true, note: true, photo: true } },
           subtasks: { orderBy: { createdAt: "asc" }, select: { id: true, title: true, doneOn: true } },
         },
       },

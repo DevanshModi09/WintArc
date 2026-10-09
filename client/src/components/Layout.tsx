@@ -55,6 +55,11 @@ export function Layout({ user }: { user: User }) {
               <NavLink to={`/u/${user.username}`} className={navClass}>
                 Profile
               </NavLink>
+              {user.isAdmin && (
+                <NavLink to="/admin" className={navClass}>
+                  Uploads
+                </NavLink>
+              )}
             </div>
             <form onSubmit={search} className="w-full sm:w-52">
               <input

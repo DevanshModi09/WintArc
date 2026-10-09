@@ -163,8 +163,6 @@ const checkInSchema = z.object({
   // Where the browser put the photo in the "proofs" bucket.
   photo: z.string("Upload a photo of your work to check in").max(200),
   note: optionalText(200),
-  // False keeps the photo to its owner: friends see the check-in without it.
-  photoPublic: z.boolean().default(true),
 });
 
 // The day's entry for a track: a photo of the work, filed against whichever
@@ -173,7 +171,7 @@ const checkInSchema = z.object({
 arcRouter.put("/tracks/:id/checkin", async (req, res) => {
   const today = parseToday(req.body?.today);
   const userId: string = res.locals.userId;
-  const { photo, note, photoPublic } = checkInSchema.parse(req.body);
+  const { photo, note } = checkInSchema.parse(req.body);
   const track = await ownedTrack(userId, req.params.id);
 
   const { arc } = track;
@@ -194,9 +192,9 @@ arcRouter.put("/tracks/:id/checkin", async (req, res) => {
   const checkpointId = track.checkpoints.find((c) => c.doneAt === null)?.id ?? null;
   await prisma.checkIn.upsert({
     where: { goalId_date: { goalId: goal.id, date: today } },
-    create: { goalId: goal.id, date: today, photo, note, photoPublic, checkpointId },
+    create: { goalId: goal.id, date: today, photo, note, checkpointId },
     // Replacing the photo keeps the checkpoint the day was first filed under.
-    update: { photo, note, photoPublic },
+    update: { photo, note },
   });
   res.json(await arcResponse(userId, today));
 });
