@@ -45,8 +45,10 @@ const newCheckpoints = (titles: string[]) => ({ create: titles.map((title, posit
 // today, so a track isn't marked as missing the days before it existed.
 const sessionGoal = (startsOn: string) => ({ title: "Session", startsOn });
 
+// Everyone's arc is the same arc, so it has one name.
+const ARC_NAME = "Winter Arc";
+
 const createArcSchema = z.object({
-  name: z.string().trim().min(1, "Give your arc a name").max(60),
   tracks: z.array(newTrackSchema).min(1, "Add at least one track").max(MAX_TRACKS),
 });
 
@@ -97,7 +99,7 @@ arcRouter.get("/arc", async (req, res) => {
 // deliberately no way to delete one: once it's set up, it runs.
 arcRouter.post("/arc", async (req, res) => {
   const today = parseToday(req.body?.today);
-  const { name, tracks } = createArcSchema.parse(req.body);
+  const { tracks } = createArcSchema.parse(req.body);
   const { canStart, endDate } = season(today);
   if (!canStart) throw new HttpError(400, "This year's arc is closed to new starts. Come back next year.");
   const running = await currentArc(res.locals.userId);
@@ -105,7 +107,7 @@ arcRouter.post("/arc", async (req, res) => {
   await prisma.arc.create({
     data: {
       userId: res.locals.userId,
-      name,
+      name: ARC_NAME,
       startDate: today,
       endDate,
       tracks: {

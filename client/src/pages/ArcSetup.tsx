@@ -15,7 +15,6 @@ const longDate = (date: string) => {
 }
 
 export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (arc: Arc | null) => void }) {
-  const [name, setName] = useState('Winter Arc')
   const [tracks, setTracks] = useState<NewTrack[]>([emptyTrack()])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -26,7 +25,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   const setTrack = (i: number, changes: Partial<NewTrack>) =>
     setTracks(tracks.map((t, j) => (j === i ? { ...t, ...changes } : t)))
 
-  const ready = name.trim() && tracks.every((t) => t.name.trim())
+  const ready = tracks.every((t) => t.name.trim())
 
   // Creating the arc is a two-step thing: the button opens the pledge, and
   // only typing it out creates anything.
@@ -40,7 +39,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
     setPledging(false)
     setBusy(true)
     try {
-      onCreated((await api.createArc({ name, tracks })).arc)
+      onCreated((await api.createArc({ tracks })).arc)
     } catch (err) {
       setError((err as Error).message)
       setBusy(false)
@@ -49,7 +48,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
 
   return (
     <>
-      {pledging && <Pledge name={name} tracks={tracks} ends={longDate(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
+      {pledging && <Pledge tracks={tracks} ends={longDate(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
       <form onSubmit={submit} className="space-y-8">
         <header className="max-w-[640px]">
           <h1 className="text-[40px] leading-none font-medium">Set up your arc</h1>
@@ -65,10 +64,6 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="min-w-0 space-y-8">
             <section className="space-y-3">
-              <label className="block space-y-1.5">
-                <span className="label">Arc name</span>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
-              </label>
               <p className="label">
                 Your arc starts today and ends on {longDate(season.endDate)}, like everyone's. The last day to start is{' '}
                 {longDate(season.lastStart)}.
@@ -139,11 +134,11 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
 
 const PLEDGE = 'i will not back off'
 
-type PledgeProps = { name: string; tracks: NewTrack[]; ends: string; onConfirm: () => void; onCancel: () => void }
+type PledgeProps = { tracks: NewTrack[]; ends: string; onConfirm: () => void; onCancel: () => void }
 
 // The last step before an arc exists: what's being decided, a nudge to keep
 // it realistic, and a line to type out so nobody commits by accident.
-function Pledge({ name, tracks, ends, onConfirm, onCancel }: PledgeProps) {
+function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
   const [typed, setTyped] = useState('')
   // Capitals and stray spaces don't matter; the words do.
   const matches = typed.trim().replace(/\s+/g, ' ').toLowerCase() === PLEDGE
@@ -182,7 +177,7 @@ function Pledge({ name, tracks, ends, onConfirm, onCancel }: PledgeProps) {
 
           <section className="space-y-2">
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="font-medium">{name.trim()}</h3>
+              <h3 className="font-medium">Winter Arc</h3>
               <span className="label">{weeklyPlan(tracks)} a week</span>
             </div>
             <ul className="divide-y divide-line rounded-field border border-line text-[14px]">

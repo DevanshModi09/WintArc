@@ -161,7 +161,7 @@ export const api = {
   deleteAccount: (username: string) => request<{ ok: true }>('DELETE', '/auth/account', { username }),
 
   getArc: () => request<ArcResponse>('GET', `/arc?today=${today()}`),
-  createArc: (input: { name: string; tracks: NewTrack[] }) =>
+  createArc: (input: { tracks: NewTrack[] }) =>
     request<ArcResponse>('POST', '/arc', { ...input, today: today() }),
 
   addTrack: (track: { name: string; isPublic: boolean; checkpoints: string[] } & Partial<Schedule>) =>
