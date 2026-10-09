@@ -28,7 +28,7 @@ const withOrder = (arc: Arc, trackId: string, ids: string[]): Arc => ({
 })
 
 // Where tracks are set up (name, schedule, visibility) and the only place
-// checkpoints are ticked. Daily goals are added and ticked on Today.
+// checkpoints are reordered. The daily check-in happens on Today.
 export function Tracks() {
   // undefined = still loading
   const [arc, setArc] = useState<Arc | null>()
@@ -76,18 +76,36 @@ export function Tracks() {
 
   const all = arc.tracks.flatMap((t) => t.checkpoints)
   const overall = trackProgress({ checkpoints: all })
+  const done = all.filter((c) => c.done).length
 
   return (
     <div className="mx-auto max-w-[720px] space-y-8">
       <header>
         <div className="eyebrow">{arc.name}</div>
-        <h1 className="mt-3 text-[40px] leading-none font-medium">
-          {overall === null ? 'Tracks' : `${overall}% of checkpoints done`}
-        </h1>
-        <p className="mt-2 text-muted">
-          Each track's name, when it runs, and its checkpoints: the milestones you tick once, which fill the track up.
-          Checkpoints are fixed when a track is created, so here you can only tick and reorder them. Daily goals live on
-          Today.
+        <div className="mt-3 flex items-end justify-between gap-6">
+          <h1 className="text-[40px] leading-none font-medium">Tracks</h1>
+          {/* Every checkpoint across every track, as one number. */}
+          <div className="text-right" title={`${done} of ${all.length} checkpoints finished across all tracks`}>
+            <div className="text-[40px] leading-none font-medium">{overall ?? 0}%</div>
+            <div className="label mt-1">
+              overall · {done} of {all.length} checkpoints
+            </div>
+          </div>
+        </div>
+        <div
+          className="mt-4 h-1.5 overflow-hidden rounded-full bg-cell"
+          role="progressbar"
+          aria-label="All checkpoints finished"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={overall ?? 0}
+        >
+          <div className="h-full bg-fg transition-[width]" style={{ width: `${overall ?? 0}%` }} />
+        </div>
+        <p className="mt-4 text-muted">
+          Each track's name, when it runs, and its checkpoints. The first unfinished checkpoint in a track is the one
+          you're on, and it's what you check in against on Today. Checkpoints are fixed when a track is created, so
+          here you can only finish and reorder them.
         </p>
       </header>
 
@@ -136,6 +154,7 @@ function NewTrack({ run }: { run: Run }) {
   return (
     <form onSubmit={submit} className="space-y-3">
       <h2 className="h2">New track</h2>
+      <p className="text-muted">Add only what you can afford to do. A new track is more time out of every day it runs.</p>
       <CheckpointWarning />
       <div className="card">
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">

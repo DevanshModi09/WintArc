@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api, today, type ArcSummary, type FeedEntry, type Friends as FriendsData, type PublicUser, type RelationInfo } from '../api'
 import { arcPhase } from '../arcStats'
 import { Avatar, ErrorNote, Loading } from '../components/ArcParts'
+import { proofUrl } from '../proof'
 import { useTitle } from '../useTitle'
 
 type SearchResult = PublicUser & RelationInfo
@@ -83,8 +84,8 @@ const feedDay = (date: string) => {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-// The last week of work from you and your friends: what got done, with the
-// proof people attached.
+// The last week of work from you and your friends: which checkpoint each
+// check-in went towards, with its photo.
 function Feed({ entries }: { entries: FeedEntry[] }) {
   return (
     <section className="space-y-3">
@@ -102,22 +103,19 @@ function Feed({ entries }: { entries: FeedEntry[] }) {
           </div>
           <ul className="divide-y divide-line">
             {entry.items.map((item) => (
-              <li key={item.id} className="px-4 py-2.5">
-                <div className="flex items-baseline gap-3">
-                  <span className="flex-1">{item.goal}</span>
-                  <span className="label">{item.track}</span>
-                </div>
-                {(item.note || item.link) && (
-                  <p className="mt-1 text-[13px] break-words text-muted">
-                    {item.note}
-                    {item.note && item.link && ' · '}
-                    {item.link && (
-                      <a href={item.link} target="_blank" rel="noreferrer noopener" className="text-fg underline underline-offset-2">
-                        {item.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}
-                      </a>
-                    )}
-                  </p>
+              <li key={item.id} className="flex items-center gap-4 px-4 py-3">
+                {item.photo && (
+                  <a href={proofUrl(item.photo)} target="_blank" rel="noreferrer noopener" className="shrink-0">
+                    <img src={proofUrl(item.photo)} alt={`Proof for ${item.track}`} loading="lazy" className="size-16 rounded-field object-cover" />
+                  </a>
                 )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-3">
+                    <span className="flex-1">{item.checkpoint ?? item.track}</span>
+                    {item.checkpoint && <span className="label">{item.track}</span>}
+                  </div>
+                  {item.note && <p className="mt-1 text-[13px] break-words text-muted">{item.note}</p>}
+                </div>
               </li>
             ))}
           </ul>

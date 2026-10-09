@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Schedule } from '../api'
-import { DAY_NAMES, DURATIONS, REMINDERS, START_TIMES, formatDuration, formatTime } from '../schedule'
+import { DAY_NAMES, DURATIONS, REMINDERS, formatDuration } from '../schedule'
+import { ClockPicker } from './ClockPicker'
+
+// The shortest and longest session the server accepts.
+const MIN_MINUTES = 15
+const MAX_MINUTES = 720
 
 const chipClass = (selected: boolean) =>
-  `h-8 min-w-8 rounded-full border px-3 font-mono text-[13px] transition ${
+  `inline-flex h-8 min-w-8 items-center justify-center rounded-full border px-3 font-mono text-[13px] transition ${
     selected ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg'
   }`
 
@@ -126,17 +131,32 @@ export function SchedulePicker({ value, onChange }: Props) {
             {formatDuration(minutes)}
           </button>
         ))}
+        {/* Anything between the presets, a quarter of an hour at a time. */}
+        <span className="flex items-center gap-1" role="group" aria-label="Adjust by 15 minutes">
+          <button
+            type="button"
+            className={chipClass(false)}
+            aria-label="15 minutes less"
+            disabled={value.minutes <= MIN_MINUTES}
+            onClick={() => onChange({ minutes: Math.max(MIN_MINUTES, value.minutes - 15) })}
+          >
+            −
+          </button>
+          {!DURATIONS.includes(value.minutes) && <span className={chipClass(true)}>{formatDuration(value.minutes)}</span>}
+          <button
+            type="button"
+            className={chipClass(false)}
+            aria-label="15 minutes more"
+            disabled={value.minutes >= MAX_MINUTES}
+            onClick={() => onChange({ minutes: Math.min(MAX_MINUTES, value.minutes + 15) })}
+          >
+            +
+          </button>
+        </span>
       </Row>
       <Row label="Starts at">
-        <Dropdown
-          label="Start time"
+        <ClockPicker
           value={value.startTime}
-          options={[
-            { value: null, label: 'Any time' },
-            // Keeps a time that isn't on the half hour selectable.
-            ...(value.startTime && !START_TIMES.includes(value.startTime) ? [value.startTime] : []),
-            ...START_TIMES,
-          ].map((o) => (typeof o === 'string' ? { value: o, label: formatTime(o) } : o))}
           // A reminder is relative to the start time, so it goes when the time does.
           onChange={(startTime) => onChange(startTime ? { startTime } : { startTime, reminder: null })}
         />

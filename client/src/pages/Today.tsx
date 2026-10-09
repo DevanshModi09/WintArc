@@ -1,61 +1,46 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, today, type Arc, type Goal, type Proof, type Track, type User } from '../api'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { api, today, type Arc, type ArcResponse, type Season, type Track, type User } from '../api'
 import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
-import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Lock, Rewards, StatLine } from '../components/ArcParts'
+import { ActivityGrid, ErrorNote, LevelBar, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
-import { Pencil, Rename } from '../components/Rename'
+import { proofUrl, uploadProof } from '../proof'
 import { scheduleSummary, weeklyPlan } from '../schedule'
 import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
 
-// `optimistic` is what the arc should look like once the action succeeds. It
-// is shown straight away, so ticking a goal doesn't wait on the network.
-type Run = (action: () => Promise<{ arc: Arc | null }>, optimistic?: Arc) => Promise<void>
+type Run = (action: () => Promise<ArcResponse>) => Promise<void>
 
-function mapGoals(arc: Arc, change: (goal: Goal) => Goal): Arc {
-  const tracks = arc.tracks.map((t) => ({ ...t, goals: t.goals.map(change) }))
-  const count = (list: Track[]) => list.flatMap((t) => (t.dueToday ? t.goals : [])).filter((g) => g.doneToday).length
-  return { ...arc, tracks, today: { ...arc.today, done: arc.today.done + count(tracks) - count(arc.tracks) } }
+const longDate = (date: string) => {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
 }
-
-// Ticking a goal ticks its mini tasks along with it.
-const withCheckIn = (arc: Arc, goalId: string, done: boolean) =>
-  mapGoals(arc, (g) =>
-    g.id === goalId ? { ...g, doneToday: done, subtasks: g.subtasks.map((s) => ({ ...s, done })) } : g,
-  )
-
-// A goal with mini tasks is done exactly when all of them are.
-const withSubtaskCheck = (arc: Arc, subtaskId: string, done: boolean) =>
-  mapGoals(arc, (g) => {
-    if (!g.subtasks.some((s) => s.id === subtaskId)) return g
-    const subtasks = g.subtasks.map((s) => (s.id === subtaskId ? { ...s, done } : s))
-    return { ...g, subtasks, doneToday: subtasks.every((s) => s.done) }
-  })
 
 export function Today({ user, onUser }: { user: User; onUser: (user: User) => void }) {
   // undefined = still loading
   const [arc, setArc] = useState<Arc | null>()
+  const [season, setSeason] = useState<Season>()
   const [startingNew, setStartingNew] = useState(false)
-  const [confirmEnd, setConfirmEnd] = useState(false)
   const [error, setError] = useState('')
 
   // Counts requests, so a slow early response can't overwrite a newer one.
   const latest = useRef(0)
   useTitle()
 
+  const show = (res: ArcResponse) => {
+    setArc(res.arc)
+    setSeason(res.season)
+  }
+
   // Every arc endpoint returns the fresh arc, so one helper handles them all.
-  const run: Run = async (action, optimistic) => {
+  const run: Run = async (action) => {
     const id = ++latest.current
     setError('')
-    if (optimistic) setArc(optimistic)
     try {
       const res = await action()
-      if (id === latest.current) setArc(res.arc)
+      if (id === latest.current) show(res)
     } catch (err) {
       setError((err as Error).message)
-      // Put back whatever the server really has.
-      if (optimistic) api.getArc().then((res) => id === latest.current && setArc(res.arc), () => {})
     }
   }
 
@@ -63,7 +48,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
     const load = () => {
       const id = ++latest.current
       api.getArc().then(
-        (res) => id === latest.current && setArc(res.arc),
+        (res) => id === latest.current && show(res),
         (err: Error) => setError(err.message),
       )
     }
@@ -74,10 +59,12 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  if (arc === undefined) return error ? <ErrorNote message={error} /> : <Loading />
+  if (arc === undefined || !season) return error ? <ErrorNote message={error} /> : <Loading />
   if (arc === null || startingNew) {
+    if (!season.canStart) return <Closed season={season} />
     return (
       <ArcSetup
+        season={season}
         onCreated={(created) => {
           setArc(created)
           setStartingNew(false)
@@ -88,9 +75,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
 
   const nextBadge = arc.badges.find((b) => !b.earned)
   const standing = survivorLabel(arc)
-  const notStarted = arc.startsIn > 0
-  const [year, month, day] = arc.startDate.split('-').map(Number)
-  const startDay = new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+  const due = arc.tracks.filter((t) => t.dueToday)
 
   return (
     <div className="space-y-8">
@@ -109,15 +94,11 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
             <h1 className="text-[40px] leading-none font-medium">
-            {arc.isOver
-              ? `Finished with ${arc.perfectDays} perfect days`
-              : notStarted
-                ? `Starts on ${startDay}`
-                : arc.tracks.every((t) => t.goals.length === 0)
-                  ? 'Add your daily goals'
-                  : arc.today.total === 0
-                    ? 'Rest day'
-                  : arc.today.done === arc.today.total && arc.today.total > 0
+              {arc.isOver
+                ? `Finished with ${arc.perfectDays} perfect days`
+                : due.length === 0
+                  ? 'Rest day'
+                  : arc.today.done === arc.today.total
                     ? 'Day locked in'
                     : `${arc.today.done} of ${arc.today.total} done today`}
             </h1>
@@ -129,39 +110,20 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
             <Link to="/wrapped" className="btn">
               See your wrapped
             </Link>
-            <button className="btn-outline" onClick={() => setStartingNew(true)}>
-              Start next arc
-            </button>
-          </div>
-        ) : confirmEnd ? (
-          <div className="flex items-center gap-2">
-            <span className="text-muted">Delete this arc and its progress?</span>
-            <button
-              className="btn"
-              onClick={() => {
-                setConfirmEnd(false)
-                run(() => api.deleteArc(arc.id))
-              }}
-            >
-              Delete
-            </button>
-            <button className="btn-outline" onClick={() => setConfirmEnd(false)}>
-              Cancel
-            </button>
+            {season.canStart && (
+              <button className="btn-outline" onClick={() => setStartingNew(true)}>
+                Start next arc
+              </button>
+            )}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <button
-              className="btn-outline"
-              title="Downloads a calendar file with a repeating event for each track"
-              onClick={() => downloadCalendar(arc)}
-            >
-              Add to calendar
-            </button>
-            <button className="btn-outline" onClick={() => setConfirmEnd(true)}>
-              End arc
-            </button>
-          </div>
+          <button
+            className="btn-outline"
+            title="Downloads a calendar file with a repeating event for each track"
+            onClick={() => downloadCalendar(arc)}
+          >
+            Add to calendar
+          </button>
         )}
       </header>
 
@@ -173,31 +135,21 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
             <h2 className="h2">
               Tracks <span className="label ml-1.5 font-normal">{weeklyPlan(arc.tracks)} a week</span>
             </h2>
-            {notStarted ? (
-              <span className="label">Set up your goals now. They lock in once the arc is running.</span>
-            ) : nextBadge && (
+            {nextBadge && !arc.isOver && (
               <span className="label">
                 {nextBadge.days - arc.streak.current} days to {nextBadge.name}
               </span>
             )}
           </div>
           {arc.tracks.map((track) => (
-            <TrackCard
-              key={track.id}
-              track={track}
-              editable={!arc.isOver}
-              canCheckIn={!arc.isOver && !notStarted}
-              run={run}
-              checkIn={(goalId, done) => run(() => api.checkIn(goalId, done), withCheckIn(arc, goalId, done))}
-              checkSubtask={(id, done) => run(() => api.checkSubtask(id, done), withSubtaskCheck(arc, id, done))}
-            />
+            <TrackCard key={track.id} track={track} open={!arc.isOver} run={run} />
           ))}
           {!arc.isOver && (
             <Link to="/tracks" className="btn-outline">
-              Edit tracks
+              All checkpoints
             </Link>
           )}
-          {!arc.isOver && !notStarted && (
+          {!arc.isOver && (
             <ReflectionCard
               key={today()}
               saved={arc.reflections?.find((r) => r.date === today())?.text ?? ''}
@@ -211,27 +163,25 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
           <ActivityGrid arc={arc} />
           <LevelBar arc={arc} />
           <Rewards arc={arc} />
-          {!notStarted && (
-            <section className="space-y-2.5">
-              <h2 className="h2">Milestones</h2>
-              <div className="flex flex-wrap gap-2 font-mono text-[13px]">
-                {MILESTONES.map((m) =>
-                  milestoneUnlocked(arc, m) ? (
-                    <Link key={m} to={`/wrapped?day=${m}`} className="rounded-full bg-fg px-3 py-1.5 text-bg hover:bg-fg/80">
-                      Day {m} card
-                    </Link>
-                  ) : (
-                    <span key={m} title={`Unlocks after day ${m}`} className="rounded-full border border-dashed border-muted/50 px-3 py-1.5 text-muted">
-                      Day {m} card
-                    </span>
-                  ),
-                )}
-                <Link to="/wrapped" className="rounded-full border border-line px-3 py-1.5 hover:border-fg">
-                  {arc.isOver ? 'Final wrap' : 'Arc so far'}
-                </Link>
-              </div>
-            </section>
-          )}
+          <section className="space-y-2.5">
+            <h2 className="h2">Milestones</h2>
+            <div className="flex flex-wrap gap-2 font-mono text-[13px]">
+              {MILESTONES.map((m) =>
+                milestoneUnlocked(arc, m) ? (
+                  <Link key={m} to={`/wrapped?day=${m}`} className="rounded-full bg-fg px-3 py-1.5 text-bg hover:bg-fg/80">
+                    Day {m} card
+                  </Link>
+                ) : (
+                  <span key={m} title={`Unlocks after day ${m}`} className="rounded-full border border-dashed border-muted/50 px-3 py-1.5 text-muted">
+                    Day {m} card
+                  </span>
+                ),
+              )}
+              <Link to="/wrapped" className="rounded-full border border-line px-3 py-1.5 hover:border-fg">
+                {arc.isOver ? 'Final wrap' : 'Arc so far'}
+              </Link>
+            </div>
+          </section>
           <SharePage user={user} onUser={onUser} />
         </aside>
       </div>
@@ -239,13 +189,23 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
   )
 }
 
-type TrackCardProps = {
-  track: Track
-  editable: boolean
-  canCheckIn: boolean
-  run: Run
-  checkIn: (goalId: string, done: boolean) => void
-  checkSubtask: (subtaskId: string, done: boolean) => void
+// What someone without an arc sees when it's too late, or too early, to start.
+function Closed({ season }: { season: Season }) {
+  const missed = today() > season.lastStart
+  return (
+    <div className="mx-auto max-w-[560px] space-y-4 py-16 text-center">
+      <div className="eyebrow justify-center">Winter Arc</div>
+      <h1 className="text-[40px] leading-none font-medium">{missed ? 'Come back next year' : 'Not open yet'}</h1>
+      <p className="text-muted">
+        {missed
+          ? `The last day to start this year's arc was ${longDate(season.lastStart)}. Everyone who's in runs until ${longDate(season.endDate)}, and the next arc opens on 1 October.`
+          : `The arc opens on ${longDate(season.opens)}. You can start any day up to ${longDate(season.lastStart)}, and it runs until ${longDate(season.endDate)}.`}
+      </p>
+      <Link to="/board" className="btn-outline">
+        See who's in
+      </Link>
+    </div>
+  )
 }
 
 type ReflectionProps = { saved: string; count: number; save: (text: string) => void }
@@ -339,248 +299,154 @@ function SharePage({ user, onUser }: { user: User; onUser: (user: User) => void 
   )
 }
 
-// Daily goals are added, edited and ticked here. The track itself (name,
-// schedule, checkpoints) is set up on the Tracks page.
-function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: TrackCardProps) {
-  const [draft, setDraft] = useState('')
-  const [renaming, setRenaming] = useState<string>()
-  // The goal that has its "add a mini task" field open.
-  const [addingTo, setAddingTo] = useState<string>()
-  const [subDraft, setSubDraft] = useState('')
-  // The goal that has its proof form open.
-  const [proving, setProving] = useState<string>()
-  // Off-days only matter once check-ins are open.
-  const restDay = canCheckIn && !track.dueToday
+// One track for today. The task is whichever checkpoint the track is up to:
+// check in with a photo of the work, and finish the checkpoint when it's done
+// to move on to the next.
+function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run }) {
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  // Whether friends will see the photo. A private track's never reach them anyway.
+  const [shared, setShared] = useState(track.proof?.shared ?? true)
+  const [finishing, setFinishing] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
   const progress = trackProgress(track)
-  const locked = !canCheckIn || restDay
-  const dim = restDay ? '' : 'disabled:opacity-100'
+  const { active } = track
+  const next = active && track.checkpoints[active.number]
 
-  function addGoal(e: FormEvent) {
-    e.preventDefault()
-    const title = draft.trim()
-    if (!title) return
-    setDraft('')
-    run(() => api.addGoal(track.id, title))
+  async function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // Clear the input so picking the same file again still fires a change.
+    e.target.value = ''
+    if (!file) return
+    setBusy(true)
+    await run(async () =>
+      api.checkIn(track.id, { photo: await uploadProof(file), note: note.trim() || (track.proof?.note ?? ''), photoPublic: shared }),
+    )
+    setNote('')
+    setBusy(false)
   }
 
-  function addSubtask(e: FormEvent, goalId: string) {
-    e.preventDefault()
-    const title = subDraft.trim()
-    if (!title) return setAddingTo(undefined)
-    setSubDraft('')
-    run(() => api.addSubtask(goalId, title))
+  // Changes who sees a photo that's already up, without uploading it again.
+  function share(next: boolean) {
+    setShared(next)
+    const { proof } = track
+    if (proof) run(() => api.checkIn(track.id, { photo: proof.photo, note: proof.note ?? '', photoPublic: next }))
   }
+
+  const visibility = track.isPublic && (
+    <div className="flex items-center gap-1.5 text-[13px]" role="group" aria-label="Who sees the photo">
+      <span className="label mr-1">Photo visible to</span>
+      {[
+        { value: true, label: 'Friends' },
+        { value: false, label: 'Only me' },
+      ].map((option) => (
+        <button
+          key={option.label}
+          type="button"
+          className={`h-7 rounded-full border px-3 transition ${
+            shared === option.value ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg'
+          }`}
+          aria-pressed={shared === option.value}
+          disabled={busy}
+          onClick={() => share(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  let kicker = "Today's session"
+  if (track.complete) kicker = 'Every checkpoint finished'
+  else if (active) kicker = `Checkpoint ${active.number} of ${track.checkpoints.length}`
 
   return (
     <section className="card">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3">
         <h3 className="flex-1 font-semibold">{track.name}</h3>
         {progress !== null && (
-          <Link to="/tracks" className="font-mono text-[13px] text-muted hover:text-fg" title="Checkpoints done. Open Tracks to tick them.">
+          <Link to="/tracks" className="font-mono text-[13px] text-muted hover:text-fg" title="Checkpoints finished">
             {progress}%
           </Link>
         )}
-        <span className="font-mono text-[13px] text-muted">
-          {restDay ? 'rest day · ' : ''}
-          {track.streak.current}d streak
-        </span>
+        <span className="font-mono text-[13px] text-muted">{track.streak.current}d streak</span>
         <span className="label hidden sm:inline">{scheduleSummary(track)}</span>
       </div>
 
-      {track.goals.map((goal) =>
-        renaming === goal.id ? (
-          <div key={goal.id} className="flex min-h-11 items-center border-b border-line px-4">
-            <Rename
-              value={goal.title}
-              label="Goal"
-              maxLength={80}
-              onCancel={() => setRenaming(undefined)}
-              onSave={(title) => {
-                setRenaming(undefined)
-                run(() => api.renameGoal(goal.id, title))
-              }}
-            />
-          </div>
-        ) : (
-          <div key={goal.id} className="border-b border-line last:border-b-0">
-            <div className="flex items-center">
-              <button
-                className={`flex min-h-11 flex-1 items-center gap-3 px-4 text-left ${dim}`}
-                aria-pressed={goal.doneToday}
-                disabled={locked}
-                onClick={() => checkIn(goal.id, !goal.doneToday)}
-              >
-                <Checkbox checked={goal.doneToday} />
-                <span className={`flex-1 ${goal.doneToday ? 'text-muted line-through' : ''}`}>{goal.title}</span>
-                {goal.subtasks.length > 0 && (
-                  <span className="font-mono text-[13px] text-muted">
-                    {goal.subtasks.filter((s) => s.done).length}/{goal.subtasks.length}
-                  </span>
-                )}
-                <span className="font-mono text-[13px] text-muted">{goal.streak.current}d</span>
-              </button>
-              {editable && goal.doneToday && !locked && (
-                <button
-                  className="px-2 text-[13px] text-muted hover:text-fg"
-                  aria-expanded={proving === goal.id}
-                  onClick={() => setProving(proving === goal.id ? undefined : goal.id)}
-                >
-                  {goal.proof ? 'Edit proof' : 'Add proof'}
-                </button>
-              )}
-              {editable && (
-                <>
-                  <button
-                    className="px-2 text-muted hover:text-fg"
-                    aria-label={`Add a mini task to ${goal.title}`}
-                    title="Add a mini task"
-                    aria-expanded={addingTo === goal.id}
-                    onClick={() => {
-                      setSubDraft('')
-                      setAddingTo(addingTo === goal.id ? undefined : goal.id)
-                    }}
-                  >
-                    +
-                  </button>
-                  {goal.locked ? (
-                    <span className="py-2 pr-4 pl-2 text-muted" title="Locked in for the arc. You can add to it, but not change or remove it.">
-                      <Lock />
-                      <span className="sr-only">Locked in</span>
-                    </span>
-                  ) : (
-                    <>
-                      <button className="px-2 text-muted hover:text-fg" aria-label={`Rename ${goal.title}`} onClick={() => setRenaming(goal.id)}>
-                        <Pencil />
-                      </button>
-                      <button
-                        className="py-2 pr-4 pl-2 text-muted hover:text-fg"
-                        aria-label={`Delete ${goal.title}`}
-                        onClick={() => run(() => api.deleteGoal(goal.id))}
-                      >
-                        ✕
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-            {proving === goal.id && goal.doneToday ? (
-              <ProofForm
-                proof={goal.proof}
-                onCancel={() => setProving(undefined)}
-                onSave={(proof) => {
-                  setProving(undefined)
-                  run(() => api.setProof(goal.id, proof))
-                }}
-              />
-            ) : (
-              goal.proof && <ProofLine proof={goal.proof} />
-            )}
-            {goal.subtasks.map((sub) => (
-              <div key={sub.id} className="flex items-center">
-                <button
-                  className={`flex min-h-9 flex-1 items-center gap-3 pr-4 pl-11 text-left text-[13px] ${dim}`}
-                  aria-pressed={sub.done}
-                  disabled={locked}
-                  onClick={() => checkSubtask(sub.id, !sub.done)}
-                >
-                  <Checkbox checked={sub.done} />
-                  <span className={sub.done ? 'text-muted line-through' : ''}>{sub.title}</span>
-                </button>
-                {editable && !goal.locked && (
-                  <button
-                    className="py-1 pr-4 pl-2 text-[13px] text-muted hover:text-fg"
-                    aria-label={`Delete ${sub.title}`}
-                    onClick={() => run(() => api.deleteSubtask(sub.id))}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-            {addingTo === goal.id && (
-              <form onSubmit={(e) => addSubtask(e, goal.id)} className="flex items-center gap-3 pr-4 pl-11">
-                <span className="w-4 text-center text-muted">+</span>
-                <input
-                  autoFocus
-                  className="h-9 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted"
-                  placeholder="Add a mini task, then press Enter"
-                  aria-label={`Mini task for ${goal.title}`}
-                  maxLength={60}
-                  value={subDraft}
-                  onChange={(e) => setSubDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Escape' && setAddingTo(undefined)}
-                />
-              </form>
-            )}
-          </div>
-        ),
-      )}
+      <div className="space-y-4 p-4">
+        <div>
+          <div className="label">{kicker}</div>
+          <div className="mt-1 text-xl leading-tight font-medium">{active?.title ?? (track.complete ? 'Track complete' : track.name)}</div>
+        </div>
 
-      {editable && (
-        <form onSubmit={addGoal} className="flex items-center gap-3 px-4">
-          <span className="w-4 text-center text-muted">+</span>
-          <input
-            className="h-11 flex-1 bg-transparent outline-none placeholder:text-muted"
-            placeholder="Add a daily goal"
-            aria-label={`Add a daily goal to ${track.name}`}
-            maxLength={80}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-        </form>
+        <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickPhoto} />
+
+        {track.doneToday && track.proof ? (
+          <div className="flex flex-wrap items-center gap-4">
+            <a href={proofUrl(track.proof.photo)} target="_blank" rel="noreferrer noopener" className="shrink-0">
+              <img src={proofUrl(track.proof.photo)} alt="Today's proof" className="size-20 rounded-field object-cover" />
+            </a>
+            <div className="min-w-0 flex-1">
+              <div className="font-medium">Checked in today</div>
+              {track.proof.note && <p className="label mt-0.5 break-words">{track.proof.note}</p>}
+              {open && <div className="mt-2">{visibility}</div>}
+            </div>
+            {open && (
+              <button className="label hover:text-fg" disabled={busy} onClick={() => fileInput.current?.click()}>
+                {busy ? 'Uploading…' : 'Replace photo'}
+              </button>
+            )}
+          </div>
+        ) : !open ? null : !track.dueToday ? (
+          <p className="label">{track.complete ? 'Nothing more to do on this track.' : 'Not scheduled today. Rest up.'}</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <input
+              className="input min-w-48 flex-1"
+              placeholder="What did you do? (optional)"
+              aria-label={`A line about today's work on ${track.name}`}
+              maxLength={200}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>
+              {busy ? 'Uploading…' : 'Upload photo to check in'}
+            </button>
+            <div className="w-full">{visibility}</div>
+          </div>
+        )}
+      </div>
+
+      {open && active && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-4 py-3">
+          {finishing ? (
+            <>
+              <span className="flex-1 text-[14px]">
+                Finish “{active.title}”? {next ? `Next up: ${next.title}.` : "That's the last one on this track."}
+              </span>
+              <button
+                className="btn h-9"
+                onClick={() => {
+                  setFinishing(false)
+                  run(() => api.tickCheckpoint(active.id, true))
+                }}
+              >
+                Finish it
+              </button>
+              <button className="btn-outline h-9" onClick={() => setFinishing(false)}>
+                Not yet
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="label flex-1">{next ? `Next up: ${next.title}` : 'Last checkpoint on this track'}</span>
+              <button className="btn-outline h-9" onClick={() => setFinishing(true)}>
+                Finish this checkpoint
+              </button>
+            </>
+          )}
+        </div>
       )}
     </section>
-  )
-}
-
-// The proof shown under a ticked goal.
-function ProofLine({ proof }: { proof: Proof }) {
-  return (
-    <p className="pr-4 pb-2.5 pl-11 text-[13px] break-words text-muted">
-      {proof.note}
-      {proof.note && proof.link && ' · '}
-      {proof.link && (
-        <a href={proof.link} target="_blank" rel="noreferrer noopener" className="text-fg underline underline-offset-2">
-          {proof.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}
-        </a>
-      )}
-    </p>
-  )
-}
-
-type ProofFormProps = { proof: Proof | null; onSave: (proof: { note: string; link: string }) => void; onCancel: () => void }
-
-function ProofForm({ proof, onSave, onCancel }: ProofFormProps) {
-  const [note, setNote] = useState(proof?.note ?? '')
-  const [link, setLink] = useState(proof?.link ?? '')
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    onSave({ note: note.trim(), link: link.trim() })
-  }
-
-  return (
-    <form onSubmit={submit} className="flex flex-wrap gap-2 pr-4 pb-3 pl-11" onKeyDown={(e) => e.key === 'Escape' && onCancel()}>
-      <input
-        autoFocus
-        className="input h-9 min-w-48 flex-[2] text-[13px]"
-        placeholder="What did you do?"
-        aria-label="A line about what you did"
-        maxLength={200}
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
-      <input
-        className="input h-9 min-w-40 flex-1 text-[13px]"
-        type="url"
-        placeholder="Link (commit, post, video)"
-        aria-label="A link to it"
-        maxLength={300}
-        value={link}
-        onChange={(e) => setLink(e.target.value)}
-      />
-      <button className="btn h-9">Save</button>
-    </form>
   )
 }

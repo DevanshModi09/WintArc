@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { START_TIMES, formatDuration, formatTime, scheduleSummary, weeklyPlan } from './schedule'
+import { dayPlan, formatClock, formatDuration, formatTime, scheduleSummary, weeklyPlan } from './schedule'
 
 const schedule = { days: [1, 3, 5], minutes: 90, startTime: '19:00', reminder: 10 }
 
@@ -29,9 +29,42 @@ test('weeklyPlan totals every track', () => {
   assert.equal(weeklyPlan([]), '0h')
 })
 
-test('start times cover the day in half hours, from 5 AM', () => {
-  assert.equal(START_TIMES.length, 48)
-  assert.equal(new Set(START_TIMES).size, 48)
-  assert.equal(START_TIMES[0], '05:00')
-  assert.equal(START_TIMES.at(-1), '04:30')
+test('formatDuration spells out lengths that are off the half hour', () => {
+  assert.equal(formatDuration(45), '45m')
+  assert.equal(formatDuration(90), '1.5h')
+  assert.equal(formatDuration(75), '1h 15m')
+  assert.equal(formatDuration(195), '3h 15m')
+})
+
+test('dayPlan lays out the tracks that run that day, by the clock', () => {
+  const tracks = [
+    { name: 'DSA', days: [1, 2, 3], minutes: 120, startTime: '17:30' },
+    { name: 'Web', days: [1], minutes: 60, startTime: null },
+    { name: 'Gym', days: [0, 6], minutes: 60, startTime: '07:00' },
+  ]
+  const monday = dayPlan(tracks, 1)
+  assert.deepEqual(monday.blocks, [{ name: 'DSA', start: 1050, end: 1170, lane: 0 }])
+  assert.deepEqual(monday.untimed, [{ name: 'Web', minutes: 60 }])
+  assert.equal(monday.total, 180)
+  assert.deepEqual(dayPlan(tracks, 4), { blocks: [], lanes: 0, clashes: [], untimed: [], total: 0 })
+})
+
+test('dayPlan puts overlapping tracks in separate lanes and names the clash', () => {
+  const plan = dayPlan(
+    [
+      { name: 'DSA', days: [1], minutes: 120, startTime: '17:30' },
+      { name: 'Web', days: [1], minutes: 60, startTime: '19:00' },
+      { name: 'Read', days: [1], minutes: 60, startTime: '19:30' },
+    ],
+    1,
+  )
+  assert.deepEqual(plan.blocks.map((b) => b.lane), [0, 1, 0])
+  assert.deepEqual(plan.clashes, [['DSA', 'Web'], ['Web', 'Read']])
+  assert.equal(plan.lanes, 2)
+})
+
+test('formatClock', () => {
+  assert.equal(formatClock(1050), '5:30 PM')
+  assert.equal(formatClock(0), '12:00 AM')
+  assert.equal(formatClock(24 * 60), '12:00 AM')
 })

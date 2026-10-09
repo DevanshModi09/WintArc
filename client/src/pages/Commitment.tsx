@@ -6,7 +6,7 @@ import { ActivityGrid, Avatar, ErrorNote, Loading, Logo } from '../components/Ar
 import { scheduleSummary } from '../schedule'
 import { useTitle } from '../useTitle'
 
-// The page someone shares to say "I'm doing this for 90 days". It needs no
+// The page someone shares to say "I'm doing this until 1 January". It needs no
 // account to open and only ever shows their public tracks.
 export function Commitment({ signedIn = false }: { signedIn?: boolean }) {
   const { username = '' } = useParams()
@@ -90,14 +90,24 @@ export function Commitment({ signedIn = false }: { signedIn?: boolean }) {
                         {progress !== null && <span className="font-mono text-[13px] text-muted">{progress}%</span>}
                         <span className="label">{scheduleSummary(track)}</span>
                       </div>
-                      {track.goals.map((goal) => (
-                        <div key={goal.id} className="flex min-h-11 items-center gap-3 border-b border-line px-4 last:border-b-0">
-                          <span className="flex-1">{goal.title}</span>
-                          <span className="font-mono text-[13px] text-muted">
-                            {goal.total} {goal.total === 1 ? 'day' : 'days'} done
-                          </span>
-                        </div>
-                      ))}
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
+                        <span className="flex-1">
+                          {track.active ? (
+                            <>
+                              <span className="label">On checkpoint {track.active.number} of {track.checkpoints.length} · </span>
+                              {track.active.title}
+                            </>
+                          ) : track.complete ? (
+                            'Every checkpoint finished'
+                          ) : (
+                            <span className="label">No checkpoints</span>
+                          )}
+                        </span>
+                        <span className="label">
+                          {track.doneToday ? 'checked in today · ' : ''}
+                          {track.total} {track.total === 1 ? 'day' : 'days'} done
+                        </span>
+                      </div>
                     </div>
                   )
                 })}

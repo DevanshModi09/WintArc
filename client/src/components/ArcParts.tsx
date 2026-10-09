@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
+import { LOGO_BOX, LOGO_PATH } from '../logo'
 import { today, type Arc, type DayStatus, type PublicUser } from '../api'
 
 export function Logo() {
   return (
     <span className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <polygon points="12 3 22 21 2 21" />
+      <svg width="20" height="20" viewBox={`0 0 ${LOGO_BOX} ${LOGO_BOX}`} fill="currentColor" aria-hidden="true">
+        <path d={LOGO_PATH} fillRule="evenodd" />
       </svg>
       WintArc
     </span>

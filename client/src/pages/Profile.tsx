@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { api, type PastArc, type ProfileEdit, type ProfileUser, type Profile as ProfileData } from '../api'
 import { arcPhase, arcStats, trackProgress } from '../arcStats'
 import { toAvatarDataUrl } from '../avatar'
-import { ActivityGrid, Avatar, Checkbox, ErrorNote, Loading, Rewards, StatLine } from '../components/ArcParts'
+import { ActivityGrid, Avatar, ErrorNote, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadFile } from '../download'
 import { scheduleSummary } from '../schedule'
 import { supabase } from '../supabase'
@@ -167,18 +167,24 @@ function ProfileView({ username }: { username: string }) {
                     {isSelf && <span className="label">{track.isPublic ? 'Public' : 'Private'}</span>}
                     <span className="font-mono text-[13px] text-muted">{track.streak.current}d streak</span>
                   </div>
-                  {track.goals.map((goal) => (
-                    <div key={goal.id} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
-                      <Checkbox checked={goal.doneToday} />
-                      <span className="flex-1">{goal.title}</span>
-                      {goal.subtasks.length > 0 && (
-                        <span className="font-mono text-[13px] text-muted">
-                          {goal.subtasks.filter((s) => s.done).length}/{goal.subtasks.length}
-                        </span>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
+                    <span className="flex-1">
+                      {track.active ? (
+                        <>
+                          <span className="label">On checkpoint {track.active.number} of {track.checkpoints.length} · </span>
+                          {track.active.title}
+                        </>
+                      ) : track.complete ? (
+                        'Every checkpoint finished'
+                      ) : (
+                        <span className="label">No checkpoints</span>
                       )}
-                      <span className="label">{goal.doneToday ? 'done today' : `${goal.streak.current}d streak`}</span>
-                    </div>
-                  ))}
+                    </span>
+                    <span className="label">
+                      {track.doneToday ? 'checked in today · ' : ''}
+                      {track.total} {track.total === 1 ? 'day' : 'days'} done
+                    </span>
+                  </div>
                 </section>
               ))}
             </div>
@@ -256,7 +262,7 @@ function AccountActions({ username }: { username: string }) {
       <h2 className="h2">Your account</h2>
       <ErrorNote message={error} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="label">A file with your profile, arcs, goals and every check-in.</p>
+        <p className="label">A file with your profile, arcs, checkpoints and every check-in.</p>
         <button className="btn-outline" disabled={busy} onClick={exportData}>
           Export my data
         </button>

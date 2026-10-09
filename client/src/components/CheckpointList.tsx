@@ -3,14 +3,19 @@ import { parseCheckpoints } from '../checkpoints'
 
 // Matches the server's limit.
 const MAX_CHECKPOINTS = 30
+// A longer list than this is folded away behind a row you click to open.
+const FOLD_OVER = 4
 
-export const CHECKPOINT_WARNING =
+const CHECKPOINT_WARNING =
   "Checkpoints lock when the track is created. After that you can tick and reorder them, but you can't add, edit or delete any, so get the list right first."
 
 // The checkpoints of a track that hasn't been created yet: type them one at a
-// time, or paste a whole list and every line becomes one.
+// time, or paste a whole list and every line becomes one. A long list folds
+// down to one row with an arrow, so it doesn't push the rest off the page.
 export function CheckpointList({ value, onChange }: { value: string[]; onChange: (checkpoints: string[]) => void }) {
   const [draft, setDraft] = useState('')
+  const [open, setOpen] = useState(false)
+  const folds = value.length > FOLD_OVER
 
   function add() {
     const title = draft.trim()
@@ -30,8 +35,36 @@ export function CheckpointList({ value, onChange }: { value: string[]; onChange:
 
   return (
     <>
-      {value.map((checkpoint, i) => (
+      {folds && (
+        <button
+          type="button"
+          className="flex min-h-11 w-full items-center gap-3 border-b border-line px-4 text-left hover:bg-subtle"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <span className="font-medium">{value.length} checkpoints</span>
+          <span className="label min-w-0 flex-1 truncate">
+            {open ? 'Click to hide' : `${value[0]} to ${value.at(-1)}`}
+          </span>
+          <svg
+            className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      )}
+      {(!folds || open) && value.map((checkpoint, i) => (
         <div key={i} className="flex min-h-11 items-center gap-3 border-b border-line px-4">
+          <span className="w-5 text-right text-[13px] text-muted">{i + 1}</span>
           <span className="flex-1">{checkpoint}</span>
           <button
             type="button"

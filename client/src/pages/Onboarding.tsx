@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, type User } from '../api'
 import { ErrorNote, Logo } from '../components/ArcParts'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { supabase } from '../supabase'
 
 // First sign-in only: pick the name and @username friends will find you by.
@@ -25,7 +24,6 @@ export function Onboarding({ suggestedName, onDone }: { suggestedName: string; o
 
   return (
     <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
-      <ThemeToggle className="fixed top-5 right-6" />
       <Logo />
       <h1 className="mt-8 text-[40px] leading-none font-medium">Set up your profile</h1>
       <p className="mt-2 text-muted">Friends will find you by your username.</p>

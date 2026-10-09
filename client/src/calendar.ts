@@ -5,7 +5,7 @@ import { today } from './today'
 // Builds an .ics file with one repeating event per track, which Apple
 // Calendar, Google Calendar and Outlook can all import.
 
-type CalendarTrack = Pick<Track, 'id' | 'name' | 'days' | 'minutes' | 'startTime' | 'reminder'> & { goals: { title: string }[] }
+type CalendarTrack = Pick<Track, 'id' | 'name' | 'days' | 'minutes' | 'startTime' | 'reminder'> & { checkpoints: { title: string }[] }
 type CalendarArc = Pick<Arc, 'name' | 'startDate' | 'endDate'> & { tracks: CalendarTrack[] }
 
 const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
@@ -46,14 +46,14 @@ function trackEvent(arc: CalendarArc, track: CalendarTrack, stamp: string): stri
   while (first <= arc.endDate && !track.days.includes(weekday(first))) first = addDays(first, 1)
   if (first > arc.endDate) return []
 
-  const goals = track.goals.map((g) => `- ${g.title}`).join('\n')
+  const checkpoints = track.checkpoints.map((c) => `- ${c.title}`).join('\n')
   const lines = [
     'BEGIN:VEVENT',
     // A stable id, so importing again updates the event instead of duplicating it.
     `UID:${track.id}@wintarc`,
     `DTSTAMP:${stamp}`,
     `SUMMARY:${escapeText(track.name)}`,
-    `DESCRIPTION:${escapeText(goals ? `${arc.name}\n${goals}` : arc.name)}`,
+    `DESCRIPTION:${escapeText(checkpoints ? `${arc.name}\n${checkpoints}` : arc.name)}`,
   ]
   const byDay = track.days.map((d) => BYDAY[d]).join(',')
   if (track.startTime) {

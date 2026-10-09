@@ -21,7 +21,7 @@ const track = {
   minutes: 90,
   startTime: '19:30' as string | null,
   reminder: 10 as number | null,
-  goals: [{ title: 'Ship one feature with a title that is long enough to need folding onto a second line' }],
+  checkpoints: [{ title: 'Ship one feature with a title that is long enough to need folding onto a second line' }],
 }
 const ics = (tracks = [track]) => arcToIcs({ name: 'Winter Arc', startDate, endDate, tracks })
 

@@ -11,23 +11,9 @@ export type DayStatus = 'perfect' | 'partial' | 'missed' | 'empty'
 export type Level = { number: number; title: string; xpIntoLevel: number; xpPerLevel: number }
 export type Badge = { days: number; name: string; xp: number; earned: boolean }
 
-// A mini task inside a goal. Ticking every one of them completes the goal.
-export type Subtask = { id: string; title: string; done: boolean }
-
-// What you did for a goal today: a line about it, a link to it, or both.
-export type Proof = { note: string | null; link: string | null }
-
-export type Goal = {
-  id: string
-  title: string
-  // Locked goals can't be renamed or removed: the bar only goes up.
-  locked: boolean
-  doneToday: boolean
-  proof: Proof | null
-  subtasks: Subtask[]
-  total: number
-  streak: Streak
-}
+// The photo that backs up a day's check-in (its path in storage), the line
+// that went with it, and whether friends see the photo or only its owner.
+export type Proof = { photo: string; note: string | null; shared: boolean }
 
 // When a track runs: weekdays (0 = Sunday), minutes per session, and an
 // optional "HH:MM" start time with a reminder that many minutes before it.
@@ -42,12 +28,20 @@ export type Track = Schedule & {
   id: string
   name: string
   isPublic: boolean
-  // False on the weekdays this track isn't scheduled for.
+  // False on the weekdays this track isn't scheduled for, and once every
+  // checkpoint is finished.
   dueToday: boolean
-  // True once it holds a locked goal, after which it can't be deleted.
+  // True from the day after it was added, when it can no longer be deleted.
   locked: boolean
+  // The checkpoint being worked on: the first in line that isn't finished.
+  // Null when there are none left, or the track never had any.
+  active: { id: string; title: string; number: number } | null
+  complete: boolean
+  doneToday: boolean
+  proof: Proof | null
+  // How many days a check-in was made.
+  total: number
   streak: Streak
-  goals: Goal[]
 }
 
 // Still standing until the first day something is left undone.
@@ -106,8 +100,11 @@ export type Friends = {
   outgoing: FriendRequest[]
 }
 
+// When this year's arc can be started, and when it ends for everyone.
+export type Season = { opens: string; lastStart: string; endDate: string; canStart: boolean }
+
 export type Survivors = {
-  season: { startDate: string; totalDays: number; startsIn: number; dayNumber: number }
+  season: Pick<Season, 'endDate' | 'lastStart' | 'canStart'> & { daysLeft: number }
   started: number
   standing: number
   // null when you aren't running this season's arc.
@@ -118,7 +115,7 @@ export type Survivors = {
 export type FeedEntry = {
   user: PublicUser
   date: string
-  items: ({ id: string; goal: string; track: string } & Proof)[]
+  items: { id: string; track: string; checkpoint: string | null; note: string | null; photo: string | null }[]
 }
 
 export type Commitment = { user: PublicUser & { bio: string | null }; arc: Arc | null }
@@ -126,7 +123,7 @@ export type Commitment = { user: PublicUser & { bio: string | null }; arc: Arc |
 // A track as it's set up with a new arc: its plan and its checkpoints.
 export type NewTrack = Schedule & { name: string; isPublic: boolean; checkpoints: string[] }
 
-type ArcResponse = { arc: Arc | null }
+export type ArcResponse = { arc: Arc | null; season: Season }
 
 const OFFLINE = "Can't reach WintArc. Check your connection and try again."
 
@@ -166,7 +163,6 @@ export const api = {
   getArc: () => request<ArcResponse>('GET', `/arc?today=${today()}`),
   createArc: (input: { name: string; tracks: NewTrack[] }) =>
     request<ArcResponse>('POST', '/arc', { ...input, today: today() }),
-  deleteArc: (id: string) => request<ArcResponse>('DELETE', `/arc/${id}?today=${today()}`),
 
   addTrack: (track: { name: string; isPublic: boolean; checkpoints: string[] } & Partial<Schedule>) =>
     request<ArcResponse>('POST', '/tracks', { ...track, today: today() }),
@@ -174,24 +170,12 @@ export const api = {
     request<ArcResponse>('PATCH', `/tracks/${id}`, { ...changes, today: today() }),
   deleteTrack: (id: string) => request<ArcResponse>('DELETE', `/tracks/${id}?today=${today()}`),
 
-  addGoal: (trackId: string, title: string) =>
-    request<ArcResponse>('POST', '/goals', { trackId, title, today: today() }),
-  renameGoal: (id: string, title: string) =>
-    request<ArcResponse>('PATCH', `/goals/${id}`, { title, today: today() }),
-  deleteGoal: (id: string) => request<ArcResponse>('DELETE', `/goals/${id}?today=${today()}`),
-  checkIn: (id: string, done: boolean) =>
-    request<ArcResponse>('PUT', `/goals/${id}/checkin`, { done, today: today() }),
-  setProof: (id: string, proof: { note: string; link: string }) =>
-    request<ArcResponse>('PUT', `/goals/${id}/proof`, { ...proof, today: today() }),
+  // The day's entry for a track: a photo already uploaded to storage.
+  checkIn: (trackId: string, entry: { photo: string; note: string; photoPublic: boolean }) =>
+    request<ArcResponse>('PUT', `/tracks/${trackId}/checkin`, { ...entry, today: today() }),
   setReflection: (text: string) => request<ArcResponse>('PUT', '/arc/reflection', { text, today: today() }),
 
-  addSubtask: (goalId: string, title: string) =>
-    request<ArcResponse>('POST', '/subtasks', { goalId, title, today: today() }),
-  deleteSubtask: (id: string) => request<ArcResponse>('DELETE', `/subtasks/${id}?today=${today()}`),
-  checkSubtask: (id: string, done: boolean) =>
-    request<ArcResponse>('PUT', `/subtasks/${id}/check`, { done, today: today() }),
-
-  // A track's checkpoints are fixed when it's created, so ticking is all there is.
+  // Finishing a checkpoint moves the track on to the next one.
   tickCheckpoint: (id: string, done: boolean) =>
     request<ArcResponse>('PATCH', `/checkpoints/${id}`, { done, today: today() }),
   reorderCheckpoints: (trackId: string, ids: string[]) =>

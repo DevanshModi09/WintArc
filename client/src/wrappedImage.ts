@@ -1,4 +1,5 @@
 import type { Arc, DayStatus } from './api'
+import { LOGO_BOX, LOGO_PATH } from './logo'
 
 // Draws the wrap as a 1080x1350 image (the portrait size social apps like),
 // straight onto a canvas so there's nothing to screenshot.
@@ -14,7 +15,7 @@ function mix(a: string, b: string, share: number) {
   return `rgb(${rgb.join(' ')})`
 }
 
-// The active theme's colours and typefaces, so the image matches the screen.
+// The app's colours and typefaces, read off the page so the image matches it.
 function palette() {
   const style = getComputedStyle(document.documentElement)
   const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
@@ -63,12 +64,12 @@ export async function wrappedImage({ arc, username, title, subtitle, tiles, foot
   }
 
   // Header: the mark, who it is, and the arc.
+  ctx.save()
+  ctx.translate(PAD, 82)
+  ctx.scale(40 / LOGO_BOX, 40 / LOGO_BOX)
   ctx.fillStyle = FG
-  ctx.beginPath()
-  ctx.moveTo(PAD + 18, 86)
-  ctx.lineTo(PAD + 36, 120)
-  ctx.lineTo(PAD, 120)
-  ctx.fill()
+  ctx.fill(new Path2D(LOGO_PATH), 'evenodd')
+  ctx.restore()
   text('WintArc', PAD + 50, 118, `${headWeight} 34px ${SANS}`)
   text(`@${username}`, W - PAD, 118, `500 28px ${MONO}`, MUTED, 'right')
 

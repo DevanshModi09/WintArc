@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorNote, Logo } from '../components/ArcParts'
-import { ThemeToggle } from '../components/ThemeToggle'
+import { renderGoogleButton } from '../googleSignIn'
 import { signInWithGoogle, supabase } from '../supabase'
 
 const COPY = {
@@ -19,6 +19,104 @@ const COPY = {
     switchLink: 'Log in',
     switchTo: '/login',
   },
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// The lines that sell it, kept true as the year runs out: months while there
+// are months left, then days, and a single different pitch once starts have
+// closed.
+function seasonPitch() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const midnight = new Date(year, now.getMonth(), now.getDate()).getTime()
+  const daysLeft = Math.round((new Date(year + 1, 0, 1).getTime() - midnight) / DAY_MS)
+  const toStart = Math.round((new Date(year, 10, 10).getTime() - midnight) / DAY_MS)
+  const open = now.getMonth() >= 9 && toStart >= 0
+  if (!open) {
+    return {
+      eyebrow: 'Winter Arc',
+      slides: [{ headline: 'The arc is closed to new starts.', sub: 'It opens again on 1 October. Log in to follow the people who are in.' }],
+    }
+  }
+  const months = Math.round(daysLeft / 30)
+  const long = daysLeft > 45
+  const stretch = long ? `these last ${months} months` : `these last ${daysLeft} days`
+  const span = long ? `${months === 3 ? 'Three' : months === 2 ? 'Two' : months} months` : `${daysLeft} days`
+  return {
+    eyebrow: `${daysLeft} days left in ${year} · ${toStart === 0 ? 'last day to start' : `${toStart} days left to start`}`,
+    slides: [
+      { headline: `Bleed the maximum out of ${stretch}.`, sub: 'Start your winter arc now.' },
+      { headline: `${daysLeft} days left. Make them count.`, sub: 'Lock in your winter arc before 10 November.' },
+      { headline: "The year isn't over. You just stopped trying.", sub: `${span} is enough to change it. Start your arc.` },
+      { headline: "Everyone waits for January. Don't.", sub: 'Start now and walk into the new year already ahead.' },
+      { headline: 'No more "next year". It starts today.', sub: `${daysLeft} days, photo proof every day, no backing off.` },
+      { headline: `${span}. No excuses. No exit.`, sub: 'Set your tracks, lock them in, show up daily.' },
+      { headline: 'Finish the year like you meant it.', sub: 'Your winter arc starts the day you sign up.' },
+    ],
+  }
+}
+
+const SLIDE_MS = 4500
+
+// The pitch as a slideshow: one line at a time, sliding in, moving on by
+// itself. It waits while you hover or tab into it, and stays put for anyone
+// who has asked their system for less motion. The dots jump to a line.
+function Pitch({ eyebrow, slides }: { eyebrow: string; slides: { headline: string; sub: string }[] }) {
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  useEffect(() => {
+    if (paused || slides.length < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setInterval(() => setIndex((i) => (i + 1) % slides.length), SLIDE_MS)
+    return () => clearInterval(timer)
+  }, [paused, slides.length])
+
+  return (
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      {/* Every line is laid out in the same spot and only the current one is
+          shown, so the block is exactly as tall as the longest line needs and
+          nothing around it moves. Each sits at the bottom, against the dots. */}
+      <div className="grid overflow-hidden" aria-live="polite">
+        {slides.map((slide, i) => {
+          const current = i === index
+          const Headline = current ? 'h1' : 'div'
+          return (
+            <div
+              key={slide.headline}
+              className={`col-start-1 row-start-1 flex flex-col justify-end ${current ? '' : 'invisible'}`}
+              aria-hidden={!current}
+            >
+              <div className="eyebrow">{eyebrow}</div>
+              <div className={current ? 'slide-in' : ''}>
+                <Headline className="mt-5 text-[38px] leading-[1.05] font-medium text-balance sm:text-[48px]">{slide.headline}</Headline>
+                <p className="mt-4 text-xl text-muted">{slide.sub}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {slides.length > 1 && (
+        <div className="mt-6 flex gap-1.5" role="group" aria-label="Choose a line">
+          {slides.map((s, i) => (
+            <button
+              key={s.headline}
+              type="button"
+              className={`h-1.5 rounded-full transition-all ${i === index ? 'w-8 bg-fg' : 'w-3 bg-cell-partial hover:bg-fg'}`}
+              aria-label={`Line ${i + 1} of ${slides.length}`}
+              aria-pressed={i === index}
+              onClick={() => setIndex(i)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
@@ -54,14 +152,35 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     if (error) setError(error.message)
   }
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
-      <ThemeToggle className="fixed top-5 right-6" />
-      <Logo />
-      <h1 className="mt-8 text-[40px] leading-none font-medium">{copy.title}</h1>
-      <p className="mt-2 text-muted">Daily goals, streaks and friends for your arc.</p>
+  const pitch = seasonPitch()
 
-      <div className="mt-8 space-y-4">
+  return (
+    <main className="mx-auto grid min-h-screen max-w-[1040px] items-center gap-x-16 gap-y-12 px-6 py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section>
+        <Logo />
+        <div className="mt-10">
+          <Pitch eyebrow={pitch.eyebrow} slides={pitch.slides} />
+        </div>
+        <ul className="mt-8 space-y-3">
+          {[
+            ['Lock in your tracks', 'Pick what you’re working on and the checkpoints you’ll hit. Once it’s set, it’s set.'],
+            ['Prove it every day', 'A check-in needs a photo of the work. No photo, no day.'],
+            ['No backing off', 'There’s no ending it early. Everyone finishes on 1 January.'],
+          ].map(([title, text]) => (
+            <li key={title} className="flex gap-3">
+              <span className="mt-2 size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+              <span>
+                <span className="font-medium">{title}.</span> <span className="text-muted">{text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="h2">{copy.title}</h2>
+
+        <div className="mt-6 space-y-4">
         <form onSubmit={submit} className="space-y-3">
           <label className="block space-y-1.5">
             <span className="label">Email</span>
@@ -99,19 +218,44 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           <span className="h-px flex-1 bg-line" />
         </div>
 
-        <button className="btn-outline w-full gap-2.5" onClick={google}>
-          <GoogleMark />
-          Continue with Google
-        </button>
+        <GoogleSignIn onError={setError}>
+          <button className="btn-outline w-full gap-2.5" onClick={google}>
+            <GoogleMark />
+            Continue with Google
+          </button>
+        </GoogleSignIn>
       </div>
 
-      <p className="mt-6 text-muted">
-        {copy.switchText}{' '}
-        <Link to={copy.switchTo} className="font-medium text-fg hover:underline">
-          {copy.switchLink}
-        </Link>
-      </p>
+        <p className="mt-6 text-muted">
+          {copy.switchText}{' '}
+          <Link to={copy.switchTo} className="font-medium text-fg hover:underline">
+            {copy.switchLink}
+          </Link>
+        </p>
+      </section>
     </main>
+  )
+}
+
+// Google's own button when this site is set up for it, and otherwise the
+// children: our button, which goes the long way round through Supabase.
+function GoogleSignIn({ onError, children }: { onError: (message: string) => void; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    if (box.current) renderGoogleButton(box.current, onError).then((ok) => live && setReady(ok))
+    return () => {
+      live = false
+    }
+  }, [onError])
+
+  return (
+    <>
+      <div ref={box} className={ready ? 'flex justify-center [color-scheme:light]' : 'hidden'} />
+      {!ready && children}
+    </>
   )
 }
 
