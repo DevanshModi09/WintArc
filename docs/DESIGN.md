@@ -1,365 +1,548 @@
-# Design System Inspired by Mastercard
+---
+version: alpha
+name: Linear-design-analysis
+description: "A near-black product-focused marketing canvas built around #010102 (the deepest dark surface of any tool in this collection), light gray text (#f7f8f8), and the signature Linear lavender-blue (#5e6ad2) used as the single chromatic accent. The system reads as software-craft documentation: dense, technical, and quietly luxurious. Display type is set in the Linear custom sans (SF Pro Display fallback) at 500–700 with measured negative tracking. Cards live as charcoal panels (#0f1011) with hairline borders. The accent lavender appears on the brand mark, focus rings, and a few intentional CTAs — never decoratively. Page rhythm leans on product UI screenshots framed in dark panels rather than atmospheric color."
 
-## 1. Visual Theme & Atmosphere
+colors:
+  primary: "#5e6ad2"
+  on-primary: "#ffffff"
+  primary-hover: "#828fff"
+  primary-focus: "#5e69d1"
+  ink: "#f7f8f8"
+  ink-muted: "#d0d6e0"
+  ink-subtle: "#8a8f98"
+  ink-tertiary: "#62666d"
+  canvas: "#010102"
+  surface-1: "#0f1011"
+  surface-2: "#141516"
+  surface-3: "#18191a"
+  surface-4: "#191a1b"
+  hairline: "#23252a"
+  hairline-strong: "#34343a"
+  hairline-tertiary: "#3e3e44"
+  inverse-canvas: "#ffffff"
+  inverse-surface-1: "#f5f6f6"
+  inverse-surface-2: "#f6f7f7"
+  inverse-ink: "#000000"
+  brand-secure: "#7a7fad"
+  semantic-success: "#27a644"
+  semantic-overlay: "#000000"
 
-Mastercard's experience reads like a warm, editorial magazine built from soft stone and signal orange. The canvas is a muted putty-cream (`#F3F0EE`) — not white, not gray, but a color that feels like the paper of a premium annual report. On top of that canvas, everything that matters is shaped like a stadium, a pill, or a perfect circle. The dominant visual gesture is the **oversized radius**: heroes carry 40-point corners, cards go fully pill-shaped, service images are cropped into circular orbits, and buttons either complete the pill or fit snugly at 20 points. There are almost no sharp corners anywhere on the page.
+typography:
+  display-xl:
+    fontFamily: Linear Display
+    fontSize: 80px
+    fontWeight: 600
+    lineHeight: 1.05
+    letterSpacing: -3.0px
+  display-lg:
+    fontFamily: Linear Display
+    fontSize: 56px
+    fontWeight: 600
+    lineHeight: 1.10
+    letterSpacing: -1.8px
+  display-md:
+    fontFamily: Linear Display
+    fontSize: 40px
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: -1.0px
+  headline:
+    fontFamily: Linear Display
+    fontSize: 28px
+    fontWeight: 600
+    lineHeight: 1.20
+    letterSpacing: -0.6px
+  card-title:
+    fontFamily: Linear Display
+    fontSize: 22px
+    fontWeight: 500
+    lineHeight: 1.25
+    letterSpacing: -0.4px
+  subhead:
+    fontFamily: Linear Display
+    fontSize: 20px
+    fontWeight: 400
+    lineHeight: 1.40
+    letterSpacing: -0.2px
+  body-lg:
+    fontFamily: Linear Text
+    fontSize: 18px
+    fontWeight: 400
+    lineHeight: 1.50
+    letterSpacing: -0.1px
+  body:
+    fontFamily: Linear Text
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.50
+    letterSpacing: -0.05px
+  body-sm:
+    fontFamily: Linear Text
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 1.50
+    letterSpacing: 0
+  caption:
+    fontFamily: Linear Text
+    fontSize: 12px
+    fontWeight: 400
+    lineHeight: 1.40
+    letterSpacing: 0
+  button:
+    fontFamily: Linear Text
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 1.20
+    letterSpacing: 0
+  eyebrow:
+    fontFamily: Linear Text
+    fontSize: 13px
+    fontWeight: 500
+    lineHeight: 1.30
+    letterSpacing: 0.4px
+  mono:
+    fontFamily: Linear Mono
+    fontSize: 13px
+    fontWeight: 400
+    lineHeight: 1.50
+    letterSpacing: 0
 
-The second gesture is **orbit and trajectory**. Circular image masks don't sit still — they're connected by thin, hand-drawn-feeling orange arcs that span entire viewport widths, implying a constellation of services rather than a list. Each circle has a small attached "satellite" — a white micro-CTA holding an arrow icon — docked onto its perimeter like a moon. This is the most distinctive thing about Mastercard's current design language: the circles feel like they're in motion even though the page is still.
+rounded:
+  xs: 4px
+  sm: 6px
+  md: 8px
+  lg: 12px
+  xl: 16px
+  xxl: 24px
+  pill: 9999px
+  full: 9999px
 
-Typography is rendered entirely in **MarkForMC**, Mastercard's proprietary geometric sans. Headlines are set at a medium weight (500) with tight negative letter-spacing (-2%), giving them confidence without shouting. Body copy runs at the same family in a slightly lighter weight (450) — a weight you rarely see on the web, chosen because it reads softer than regular 400 without feeling thin. The whole system — warm cream surfaces, pill shapes, circular portraits, traced-orange orbits, black CTAs — feels simultaneously institutional (a 60-year-old payments network) and editorial (a modern brand magazine), which is exactly the tension Mastercard wants to hold.
+spacing:
+  xxs: 4px
+  xs: 8px
+  sm: 12px
+  md: 16px
+  lg: 24px
+  xl: 32px
+  xxl: 48px
+  section: 96px
+
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button}"
+    rounded: "{rounded.md}"
+    padding: 8px 14px
+  button-primary-pressed:
+    backgroundColor: "{colors.primary-focus}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button}"
+    rounded: "{rounded.md}"
+  button-primary-hover:
+    backgroundColor: "{colors.primary-hover}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button}"
+    rounded: "{rounded.md}"
+  button-secondary:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.md}"
+    padding: 8px 14px
+  button-tertiary:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.md}"
+    padding: 8px 14px
+  button-inverse:
+    backgroundColor: "{colors.inverse-canvas}"
+    textColor: "{colors.inverse-ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.md}"
+    padding: 8px 14px
+  pricing-card:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.lg}"
+    padding: 24px
+  pricing-card-featured:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.lg}"
+    padding: 24px
+  feature-card:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.lg}"
+    padding: 24px
+  product-screenshot-card:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.xl}"
+    padding: 24px
+  testimonial-card:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-lg}"
+    rounded: "{rounded.lg}"
+    padding: 32px
+  customer-logo-tile:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink-subtle}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: 16px
+  text-input:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: 8px 12px
+  text-input-focused:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: 8px 12px
+  pricing-tab-default:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink-subtle}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: 6px 14px
+  pricing-tab-selected:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: 6px 14px
+  cta-banner:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink}"
+    typography: "{typography.headline}"
+    rounded: "{rounded.lg}"
+    padding: 48px
+  changelog-row:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.xs}"
+    padding: 24px 0
+  status-badge:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.ink-muted}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.pill}"
+    padding: 2px 8px
+  top-nav:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.xs}"
+    height: 56px
+  footer:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink-subtle}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: 64px 32px
+---
+
+## Overview
+
+Linear's marketing canvas is the deepest dark surface in this collection — `{colors.canvas}` is #010102, essentially pure black with a faint blue tint. On top sits a four-step surface ladder (`{colors.surface-1}` through `{colors.surface-4}`) for cards, panels, and lifted tiles, with hairline borders running from `{colors.hairline}` (#23252a) up through `{colors.hairline-strong}` and `{colors.hairline-tertiary}`. Light gray text (`{colors.ink}` #f7f8f8) carries the body and headlines.
+
+The single chromatic accent is **Linear lavender-blue** `{colors.primary}` (#5e6ad2) — used on the brand mark, focus rings, and the primary CTA button. A lighter hover state (`{colors.primary-hover}` #828fff) and a focus-tinted variant (`{colors.primary-focus}` #5e69d1) extend the same hue. Linear avoids saturated greens, oranges, reds, etc. on the marketing canvas — the only semantic color is `{colors.semantic-success}` (#27a644) for status pills and the rare success indicator.
+
+Display type runs Linear's custom sans (with `SF Pro Display` fallback) at weight 500–700 with negative letter-spacing scaling from -3.0px at 80px down to 0 at body. The body family is Linear's text cut, and a Linear Mono is reserved for code snippets in product screenshots.
+
+The page rhythm is **dense product screenshots** — Linear's marketing leads with high-fidelity captures of the product UI (issue list, project view, dashboard) framed in `{colors.surface-1}` panels with `{rounded.xl}` 16px corners. The chrome is intentionally minimal so the app screenshots can do the heavy lifting.
 
 **Key Characteristics:**
-- Warm cream canvas (`#F3F0EE`) replaces traditional white — every surface is tinted, never sterile
-- Extreme border-radius as design language: 40px, 99px, 1000px dominate; anything square is a cookie-banner third-party
-- Circular image portraits with attached white satellite-CTAs and traced-orange orbital paths
-- Ghost "watermark" headlines (cream-on-cream text at heading scale) layered behind circle portraits
-- Black primary CTAs with 20px radius in the body — the cookie-banner orange is kept to consent flows
-- Floating pill-shaped navigation that docks below the viewport top with rounded shoulders
-- Eyebrow labels with a tiny accent dot + uppercase bold tracking — used as the section-category signal
-- Dark warm-black footer (`#141413`) with four-column link layout and large conversational headline
+- **Dark-canvas marketing system** — `{colors.canvas}` (#010102) is the deepest dark in this collection.
+- **Lavender-blue brand accent** (`{colors.primary}` #5e6ad2) — used scarcely on brand mark, focus, and the primary CTA.
+- Four-step surface ladder (canvas → surface-1 → surface-2 → surface-3 → surface-4) carries hierarchy without shadow.
+- Display tracking pulls aggressively negative (-3.0px at 80px); body holds at -0.05px.
+- Cards use `{rounded.lg}` 12px corners with 1px hairline borders — never pill, rarely 16px.
+- **Product UI screenshots** dominate the page. The marketing chrome is a dark frame for the app.
+- No second chromatic color. No atmospheric gradients. No spotlight cards.
 
-## 2. Color Palette & Roles
+## Colors
 
-### Primary
-- **Mastercard Red** (`#EB001B`): The left circle of the Mastercard mark — used only in the brand logo, never as a UI color.
-- **Mastercard Yellow** (`#F79E1B`): The right circle of the Mastercard mark — used only in the brand logo, never as a UI color.
-- **Ink Black** (`#141413`): The warm near-black used for primary CTAs, headline text on cream, and the footer surface. Slightly warm (the `13` blue value pulls toward the cream) so it never feels jet-black on the warm canvas.
+> Source pages: linear.app (home), /intake, /pricing, /contact/sales, /build.
 
-### Secondary & Accent
-- **Signal Orange** (`#CF4500`): The burnt/rust CTA orange used on consent actions and eyebrow dots. Deeper than the brand yellow, brighter than ink — it's the page's single aggressive color and must be used sparingly.
-- **Light Signal Orange** (`#F37338`): A lighter carroty orange used for carousel active indicators and decorative orbital arcs. Always acts as an attention cue, never as body color.
-- **Clay Brown** (`#9A3A0A`): The deep rust used for secondary link-style buttons (e.g., cookie details). Sits between ink and signal orange.
+### Brand & Accent
+- **Lavender-Blue** ({colors.primary}): The signature Linear accent — primary CTA, brand mark, link emphasis.
+- **Lavender Hover** ({colors.primary-hover}): Lighter lavender (#828fff) — hovered state of the primary CTA.
+- **Lavender Focus** ({colors.primary-focus}): Focus-ring tint (#5e69d1) — focused inputs, focused buttons.
+- **Brand Secure** ({colors.brand-secure}): Muted lavender-gray (#7a7fad) — used in "Linear Security" surfaces.
 
-### Surface & Background
-- **Canvas Cream** (`#F3F0EE`): The page canvas. Warm, putty-toned, the default body background. All editorial sections sit on this.
-- **Lifted Cream** (`#FCFBFA`): One step lighter than canvas — used for nested "raised" sections that want to feel like paper laid on paper.
-- **White** (`#FFFFFF`): Reserved for the floating navigation pill, modal cards, secondary button fills, and small satellite-CTA circles attached to image portraits.
-- **Soft Bone** (`#F4F4F4`): A cool-gray alternative surface used inside a handful of component subregions.
+### Surface
+- **Canvas** ({colors.canvas}): Default page background — #010102, near-pure black with a faint blue tint.
+- **Surface 1** ({colors.surface-1}): One step above canvas — feature cards, pricing cards, product screenshot panels.
+- **Surface 2** ({colors.surface-2}): Two steps above — featured pricing card, hovered cards.
+- **Surface 3** ({colors.surface-3}): Three steps above — line-tertiary backgrounds, sub-nav.
+- **Surface 4** ({colors.surface-4}): Four steps above — bg-level-3, deepest lifted surface.
+- **Hairline** ({colors.hairline}): 1px borders on cards and dividers.
+- **Hairline Strong** ({colors.hairline-strong}): Stronger 1px borders — input focus rings.
+- **Hairline Tertiary** ({colors.hairline-tertiary}): Tertiary borders for nested surfaces.
+- **Inverse Canvas** ({colors.inverse-canvas}): Pure white — surface of the inverse pill CTA on a small set of section openers.
+- **Inverse Surface 1** ({colors.inverse-surface-1}): One step above inverse canvas.
+- **Inverse Surface 2** ({colors.inverse-surface-2}): Two steps above inverse canvas.
 
-### Neutrals & Text
-- **Ink Black** (`#141413`): Primary headline and body text color.
-- **Charcoal** (`#262627`): A slightly softer black used for some text alternates.
-- **Slate Gray** (`#696969`): Muted secondary text — eyebrow label alternative, disabled states, "Privacy Choices" bottom-row text.
-- **Granite** (`#555555`) and **Graphite** (`#565656`): Deeper gray for inline body accents and link alternates.
-- **Dust Taupe** (`#D1CDC7`): Very muted cream-gray used for disabled or "whisper" text (e.g., placeholder-like empty state labels). Low contrast on cream; use only for subdued content.
+### Text
+- **Ink** ({colors.ink}): All headlines and emphasized body type — light gray #f7f8f8.
+- **Ink Muted** ({colors.ink-muted}): Secondary type at #d0d6e0 — meta info on hero panels.
+- **Ink Subtle** ({colors.ink-subtle}): Tertiary type at #8a8f98 — deselected pricing tabs, footer columns.
+- **Ink Tertiary** ({colors.ink-tertiary}): Quaternary at #62666d — disabled, footnotes.
 
-### Semantic & Accent
-- **Link Blue** (`#3860BE`): A deep, slightly dusty blue used for inline links and informational callouts. Saturated enough to read as a link without being neon.
-- **Priceless Red + Yellow**: The full-color Mastercard logo mark is the only place the brand's red and yellow appear together; they lock the identity to the page without acting as a UI palette.
+### Semantic
+- **Success Green** ({colors.semantic-success}): Status pills, success indicators. The only semantic color on marketing.
+- **Overlay** ({colors.semantic-overlay}): Pure black overlay scrim for modals.
 
-### Gradient System
-Mastercard uses no programmatic gradients in the core UI. The visual impression of "gradient" comes from two places:
-- **Circular image portraits** where a warm-orange photo subject (a card, a sunflower, a beverage) fades to the cream canvas at its edge
-- **Deep card shadows** on elevated content (`rgba(0,0,0,0.08) 0px 24px 48px`) that create a soft halo beneath pill-shaped media
-
-## 3. Typography Rules
+## Typography
 
 ### Font Family
-- **Primary**: `MarkForMC` — Mastercard's proprietary geometric sans. Every headline, body paragraph, button, nav link, and footer link on the page.
-- **Secondary**: `MarkOffcForMC` — an "Official" cut used in a minority of contexts (legal text, some forms).
-- **Fallback stack**: `SofiaSans, Arial, sans-serif` — Sofia Sans is a reasonable open-source stand-in; Arial is the final web-safe fallback.
+
+- **Linear Display** — Linear's custom display sans; fallback `SF Pro Display, -apple-system, system-ui, Segoe UI, Roboto`. Carries display-xl through subhead.
+- **Linear Text** — Linear's custom text sans (a slightly different cut tuned for body sizes); same fallback stack. Carries body sizes, button labels, captions.
+- **Linear Mono** — Linear's custom mono; fallback `ui-monospace, SF Mono, Menlo`. Used for code snippets in product screenshots and for status / ID tokens.
+
+The marketing surface treats Display and Text as one continuous voice; the family change is silent.
 
 ### Hierarchy
 
-| Role | Size | Weight | Line Height | Letter Spacing | Notes |
-|------|------|--------|-------------|----------------|-------|
-| H1 (hero) | 64px | 500 | 64px | -1.28px (-2%) | Set to `1:1` line-height for very tight vertical rhythm on multi-line hero |
-| H2 (section) | 36px | 500 | 44px | -0.72px (-2%) | Used in ghost-watermark headline treatments and section titles |
-| H3 (card title) | 24px | 500 | 28.8px (1.2) | -0.48px (-2%) | Titles inside service/solution cards |
-| H4 (subhead) | 14px | 700 | 18.2px (1.3) | normal | Rarely used in marketing surfaces |
-| Eyebrow (H5) | 14px | 700 | 14px | 0.56px (+4%) | Uppercase, paired with a tiny accent dot (e.g., "• SERVICES") |
-| Body paragraph | 16px | 450 | 22.4px (1.4) | normal | The half-step 450 weight is MarkForMC's signature — softer than 500, firmer than 400 |
-| Nav link / Button label | 16px | 500 | 16px | -0.48px (-3%) | Tight, compact, no text-transform |
-| Footer link | 14px | 450 | ~20px | normal | Lighter weight on dark footer for airier density |
-| Footer column header | 12–14px | 700 | 14px | 0.56px (+4%) | Uppercase, muted gray, short tracking |
+| Token | Size | Weight | Line Height | Letter Spacing | Use |
+|---|---|---|---|---|---|
+| `{typography.display-xl}` | 80px | 600 | 1.05 | -3.0px | Largest hero headline |
+| `{typography.display-lg}` | 56px | 600 | 1.10 | -1.8px | Section opener headlines |
+| `{typography.display-md}` | 40px | 600 | 1.15 | -1.0px | Sub-section headlines |
+| `{typography.headline}` | 28px | 600 | 1.20 | -0.6px | Pricing tier titles, CTA banner heading |
+| `{typography.card-title}` | 22px | 500 | 1.25 | -0.4px | Feature card title |
+| `{typography.subhead}` | 20px | 400 | 1.40 | -0.2px | Lead body, intro paragraphs |
+| `{typography.body-lg}` | 18px | 400 | 1.50 | -0.1px | Hero subhead, lead paragraphs |
+| `{typography.body}` | 16px | 400 | 1.50 | -0.05px | Default body |
+| `{typography.body-sm}` | 14px | 400 | 1.50 | 0 | Card body, footer columns |
+| `{typography.caption}` | 12px | 400 | 1.40 | 0 | Captions, meta, status |
+| `{typography.button}` | 14px | 500 | 1.20 | 0 | All button labels |
+| `{typography.eyebrow}` | 13px | 500 | 1.30 | 0.4px | Section eyebrow (slight positive tracking) |
+| `{typography.mono}` | 13px | 400 | 1.50 | 0 | Linear Mono for code in product screenshots |
 
 ### Principles
-- **Weight 450 is load-bearing**. Most brands use 400/500/700; Mastercard uses 450 for body copy, which creates an unusually soft reading tone. Replacing it with 400 flattens the identity.
-- **Tight negative tracking on headlines** (-2%) gives display text its editorial density — the words lock together rather than breathe.
-- **Uppercase tracking only on the eyebrow scale** (14px / 700 / +4% tracking). Don't use uppercase anywhere else; no shouty section titles.
-- **One-font system**. Resist the urge to add a second typeface for contrast. The contrast comes from scale, weight, and letter-spacing, not from a serif or display accent.
-- **Line-height ratio drops with size**. H1 is 1:1, H3 is 1.2, body is 1.4. Tight display, comfortable reading.
+
+- **Aggressive negative tracking on display** (-3.0px at 80px ≈ 4% of size).
+- **Single voice from display to body.** Display-xl at 600 → body at 400 — same family, narrower weights.
+- **Eyebrow uses positive tracking** (+0.4px) — contrast against the negative-tracked display marks the eyebrow as taxonomy.
+- **Mono only in code contexts.** Linear Mono lives inside product screenshots — not on marketing chrome.
 
 ### Note on Font Substitutes
-MarkForMC is proprietary and licensed. When rebuilding a matching aesthetic without access to the original:
-- **Sofia Sans** (Google Fonts) is the closest open-source match — it's already in Mastercard's declared fallback stack.
-- **Inter** at weights 450/500/700 works as a generic stand-in; expect slightly taller x-height and looser letter shapes.
-- **Neue Haas Grotesk** or **Geist** can approximate the geometric feel for commercial projects.
-- Whichever substitute is used, preserve the **-2% letter-spacing on headlines** and the **450 body weight** (use `font-weight: 450` with variable fonts, or substitute `font-weight: 400` and tighten the letter-spacing by ~-0.5% to compensate).
 
-## 4. Component Stylings
+Linear's custom typeface isn't publicly distributed; the documented fallback `SF Pro Display, -apple-system, system-ui` is the recommended substitute on macOS. For cross-platform implementation, **Inter** at weight 500 / 600 / 700 is the closest free substitute. **Geist Sans** is also viable. For mono, **JetBrains Mono** or **Geist Mono** at weight 400 closely approximates Linear Mono.
 
-### Buttons
-
-**Primary — Ink Pill**
-- Background: Ink Black (`#141413`)
-- Text: Canvas Cream (`#F3F0EE`) — not pure white
-- Border: 1.5px solid Ink Black (same as bg, creates crisp edge)
-- Radius: 20px
-- Padding: 6px 24px
-- Font: MarkForMC 16px / weight 500 / letter-spacing -0.32px
-- Default: as above; solid warm-black pill on cream canvas
-- Active / pressed: subtle inward-shrink or 2px offset (not a hover variant)
-- Use for: all marketing CTAs in the page body ("Learn more", "Explore", "Discover")
-
-**Secondary — Outlined Pill**
-- Background: White (`#FFFFFF`)
-- Text: Ink Black (`#141413`)
-- Border: 1.5px solid Ink Black
-- Radius: 20px
-- Padding: 6px 24px
-- Font: MarkForMC 16px / weight 450 / line-height 20.8px
-- Default: white-on-cream pill with crisp ink outline
-- Active / pressed: subtle compression
-- Use for: secondary actions paired with a primary, or standalone utility CTAs
-
-**Consent / Signal — Orange Pill**
-- Background: Signal Orange (`#CF4500`)
-- Text: White (`#FFFFFF`)
-- Border: 0
-- Radius: 24px
-- Padding: 1px 30px (very tight vertical, wide horizontal)
-- Font: MarkForMC 13px / weight 400 / letter-spacing 0.13px
-- Default: as above; bright rust pill with white text
-- Use for: cookie consent, privacy preference, and other legally-distinct confirmations. **Do not** use this orange for marketing CTAs — it reads as a compliance color.
-
-**Satellite — Circular Micro-CTA**
-- Background: White (`#FFFFFF`)
-- Icon: Ink Black arrow (`→`) at ~20px
-- Border: none
-- Radius: 50% (perfect circle)
-- Size: ~50–60px diameter
-- Shadow: none or very subtle (the portrait's shadow carries the elevation)
-- Default: docks onto the bottom-right edge of a circular portrait, protruding partway outside the portrait's circle
-- Use for: the primary entry point into service/solution cards; always paired with a circular portrait
-
-**Icon-Only Circle Button (carousel, play/pause)**
-- Background: transparent or white
-- Icon: 10–20px centered
-- Border: 1px solid Ink Black (when on cream) or none (when over media)
-- Radius: 50%
-- Size: 40px diameter minimum for carousel controls; 80px for hero video play
-- Use for: carousel pagination/play-pause, hero video play, search toggle
-
-### Cards & Containers
-
-**Hero Media Frame (Stadium)**
-- Background: Dark video or full-bleed imagery (typically black `#000000` or `#2B2B2B` behind video)
-- Radius: 40px all corners (creates a stadium shape on wide viewports)
-- Width: ~full viewport minus ~48px gutter on each side
-- Height: ~60–70% of viewport
-- Shadow: none (sits directly on canvas)
-- Corners: the extreme 40px radius on a media element is the most iconic Mastercard gesture — do not round less
-
-**Service / Solution Portrait Card**
-- Shape: Perfect circle (radius 50%) or ellipse (radius 999px / 1000px)
-- Diameter: 260–340px desktop; ~220px mobile
-- Image crop: square source, cropped to circle
-- Attached element: White satellite circular CTA (see above) docked bottom-right, ~40% outside the portrait
-- Eyebrow below: accent dot + uppercase label (e.g., "• SERVICES", "• SOLUTIONS")
-- Title below: H3 (24px / weight 500 / -2% tracking), 1–2 lines max
-- Decorative orbit: thin ~1px Light Signal Orange curved line spanning from this card outward to the next, implying connection
-
-**Pill Carousel Card**
-- Radius: 1000px (full pill) or 40px corners (rounded stadium)
-- Width: ~40–60% of viewport
-- Height: ~380–420px (portrait-pill orientation)
-- Content: full-bleed photography with small overlaid chip labels
-- Chip inside: White pill (~ 999px radius), Ink Black text, padding 8px 20px, used for category tags like "Story"
-- Large inline CTA inside: Ink Pill button, oversized (padding 16px 40px, radius 40px)
-
-**Ghost Watermark Text Block**
-- Font: MarkForMC 72–128px / weight 500 / tight -2% tracking
-- Color: Canvas Cream slightly darkened (`#E8E2DA` or similar — cream-on-cream)
-- Position: layered behind portrait circles, bleeding off the viewport edge
-- Purpose: sets section theme without competing with foreground copy
-
-### Inputs & Forms
-Minimal form surface on the marketing page. The search input in the nav header is:
-- Initial state: a 48px circular button with a magnifier icon
-- Expanded state: horizontal input field, border `1px solid` Ink Black at ~50% opacity, radius 999px, padding 12px 24px, white background
-
-**Country/language selector (footer)**
-- Background: Ink Black (same as footer)
-- Text: White
-- Border: 1px solid `rgba(255,255,255,0.4)`
-- Radius: 999px (full pill)
-- Icon: downward chevron on the right
-
-### Navigation
-
-**Floating Nav Pill (desktop)**
-- Container: white-to-translucent-white pill floating below the very top of the viewport with a ~24px top margin
-- Radius: 999px / 1000px (full pill)
-- Padding: ~16px 40px internal
-- Shadow: very soft (`rgba(0, 0, 0, 0.04) 0px 4px 24px 0px`) — just enough to lift it off the cream canvas
-- Content: Mastercard logo left, primary link group center ("For you", "For business", "For the world", "For innovators", "News and trends"), search icon right
-- Link spacing: ~48–56px gap between primary links
-- Link style: Ink Black, weight 500, 16px, no underline, no pill surround until active
-
-**Mobile Nav**
-- The same pill shape but collapsed to: logo + hamburger menu button + search icon only
-- Menu opens into a full-screen overlay with the primary links stacked vertically
-
-### Image Treatment
-
-- **Aspect ratios used**: 1:1 (all service portraits — cropped to circle), ~3:4 or ~4:5 (carousel pill cards), 16:9 or wider (hero video frame)
-- **Full-bleed vs padded**: Hero is viewport-wide with gutters; service portraits are always centered in their column with generous whitespace around; footer imagery is rare
-- **Masking**: Aggressive circular masking is the defining treatment — square source images are cropped to perfect circles of matching diameter. Never use rectangular service imagery.
-- **Lazy loading**: Standard `loading="lazy"` with a soft blur-up transition from a cream-tinted placeholder, preserving the warm palette during load
-
-### Decorative Orbital Lines
-
-A signature motif: thin (~1–1.5px) single-weight curved lines in Light Signal Orange (`#F37338`) tracing arcs between circular portraits. These lines:
-- Imply connection between service cards without literal arrows
-- Span widths from ~200px up to full-viewport arcs
-- Feel hand-drawn (subtle irregularity) rather than perfect CSS curves
-- Appear only in sections with circular portrait content — never on pill sections, never in the footer
-
-### Footer
-
-- Background: Ink Black (`#141413`)
-- Text: White
-- Padding: 48px horizontal 100px / bottom 148px (very tall bottom space)
-- Structure: large conversational H2 ("We're always here when you need us") left-aligned, then a 4-column link grid below
-- Column headers: uppercase, muted, weight 700, letter-spacing +4%
-- Link rows: white, weight 450, 14px; entries prefixed with a small icon (support bubble, card, map pin, question mark) for the "NEED HELP?" column
-- External link marker: a small upper-right arrow (`↗`) after link text
-- Bottom row (below a 1px white-at-opacity divider): copyright + privacy small-print + country-language pill dropdown + four social icons (LinkedIn, Facebook, X, YouTube)
-
-## 5. Layout Principles
+## Layout
 
 ### Spacing System
-- **Base unit**: 8px (confirmed by dembrandt extraction and computed styles)
-- **Scale**: 8 / 16 / 24 / 32 / 48 / 64 / 96 / 128 (powers of 8)
-- **Section vertical padding**: ~96–128px between major sections on desktop; ~48–64px on mobile
-- **Card internal padding**: 32–40px on desktop, ~24px on mobile
-- **Nav top margin**: ~24px from viewport top (the pill floats, doesn't touch)
+
+- **Base unit**: 4px.
+- **Tokens (front matter)**: `{spacing.xxs}` 4px · `{spacing.xs}` 8px · `{spacing.sm}` 12px · `{spacing.md}` 16px · `{spacing.lg}` 24px · `{spacing.xl}` 32px · `{spacing.xxl}` 48px · `{spacing.section}` 96px.
+- Card interior padding: `{spacing.lg}` 24px on feature/pricing cards; `{spacing.xl}` 32px on testimonial cards; `{spacing.xxl}` 48px on CTA banners.
+- Pill button padding: 8px vertical · 14px horizontal — Linear's compact button spec.
+- Form input padding: 8px vertical · 12px horizontal.
 
 ### Grid & Container
-- **Max content width**: ~1200–1280px centered, with ~48–100px horizontal gutter
-- **Column pattern**: 12-column implied, but practical layouts use 2-up asymmetric (large headline left, supporting text right), 1-up full-bleed (hero, video), or staggered single-portrait placement (service cards sit in varying grid positions creating the "constellation" feel)
-- **Footer grid**: 4 equal columns on desktop, collapses to single column accordion on mobile
+
+- Max content width sits around 1280px.
+- Card grids are 3-up at desktop, 2-up at tablet, 1-up at mobile.
+- Pricing tier grid is 3-up; comparison strip below shows checkmarks per tier.
+- Product screenshot panels span full content width — they're the protagonist.
 
 ### Whitespace Philosophy
-Mastercard treats whitespace as structure, not absence. A typical service section has:
-- A ghost headline occupying the top ~40% of the section (mostly empty cream)
-- A single circular portrait positioned ~60% down, asymmetric to left or right
-- ~300–500px of blank canvas between the portrait and the next section
-This deliberate emptiness tells the eye "slow down, read one thing at a time" — the opposite of dense dashboard UIs.
+
+The dark canvas IS the whitespace. Sections separate by lift onto surface-1 panels, not by gaps in white. Within a panel, generous `{spacing.lg}` 24px gaps between content blocks; `{spacing.section}` 96px between sections.
+
+## Elevation & Depth
+
+| Level | Treatment | Use |
+|---|---|---|
+| 0 (flat) | No shadow, no border | Default for body type, hero text, footer |
+| 1 (charcoal lift) | `{colors.surface-1}` background on canvas, 1px `{colors.hairline}` | Default cards, product panels |
+| 2 (surface-2 lift) | `{colors.surface-2}` background, 1px `{colors.hairline-strong}` | Featured pricing card, hovered cards |
+| 3 (surface-3 lift) | `{colors.surface-3}` background | Sub-nav, dropdown menus |
+| 4 (focus ring) | 2px `{colors.primary-focus}` outline at 50% opacity | Focused input, focused button |
+
+Linear's depth is carried by surface ladder + hairline borders. The brand resists drop shadows on dark almost entirely.
+
+### Decorative Depth
+
+- **Product UI screenshots** dominate as decorative depth.
+- **No atmospheric gradients, no spotlight cards.**
+- **Subtle white edge highlight** on the top edge of lifted panels — gives the dark surface a faint "pixel rendered" feel.
+
+## Shapes
 
 ### Border Radius Scale
 
-| Radius | Use |
-|--------|-----|
-| 3–6px | Tiny decorative elements, cookie banner micro-chips |
-| 20px | Primary and secondary body CTAs (the signature button radius) |
-| 24px | Consent/orange pill buttons, modal inner chips |
-| 40px | Hero media frames, large section container corners, H2 pill labels |
-| 50% | Circular portraits, icon-only buttons, satellite CTAs |
-| 99px / 999px / 1000px | Full pill shapes — navigation, carousel cards, footer country selector, primary inline chips |
+| Token | Value | Use |
+|---|---|---|
+| `{rounded.xs}` | 4px | Small chips, status badges |
+| `{rounded.sm}` | 6px | Inline tags |
+| `{rounded.md}` | 8px | All buttons, form inputs |
+| `{rounded.lg}` | 12px | Pricing cards, feature cards, testimonial cards |
+| `{rounded.xl}` | 16px | Product screenshot panels |
+| `{rounded.xxl}` | 24px | Oversized CTA banners (rare) |
+| `{rounded.pill}` | 9999px | Pricing tab toggles, status pills |
+| `{rounded.full}` | 9999px | Avatar circles |
 
-The scale is unusual: most systems use 4/8/12/16. Mastercard skips those and commits to **either small (≤6), medium-large (20–40), or full-pill (99+)**. The middle ground of 8–12 is absent, which is why the UI feels either "precise and utility" or "soft and editorial" with no in-between.
+### Photography & Illustration Geometry
 
-## 6. Depth & Elevation
+- Product UI screenshots dominate; they sit in `{rounded.xl}` 16px tiles with `{spacing.lg}` 24px outer padding.
+- Customer logo tiles render at small sizes (~24px logo height) on `{colors.canvas}` with no border.
+- Avatar circles in testimonial cards use `{rounded.full}` at 32–40px sizes.
 
-| Level | Treatment | Use |
-|-------|-----------|-----|
-| 0 | No shadow | The default — 95% of surfaces sit directly on cream canvas |
-| 1 | `rgba(0, 0, 0, 0.04) 0px 4px 24px 0px` | Floating nav pill — barely-there lift |
-| 2 | `rgba(0, 0, 0, 0.08) 0px 24px 48px 0px` | Hero media frames, elevated cards — a soft large-radius halo rather than a hard drop |
-| 3 | `rgba(0, 0, 0, 0.25) 0px 70px 110px 0px` | Rare; dramatic elevation on a feature tile |
+## Components
 
-### Shadow Philosophy
-Mastercard uses shadows as **atmospheric cushioning**, not directional light. The Level 2 shadow has a 48px spread and only 8% opacity — it barely exists as dark pixels but creates a "the card is breathing above the canvas" feel. There are almost no hard-edged, tight shadows anywhere in the system. Border lines are preferred over shadows for functional delineation (form inputs, footer divider).
+### Buttons
 
-### Decorative Depth
-- **Orbital arcs** (Light Signal Orange, ~1px): trace connective paths across sections
-- **Ghost watermark headlines**: cream-on-cream text gives sections an almost-pressed-paper quality
-- **Circle-image fade**: warm-toned photography at the edge of circular portraits dissolves into the canvas, implying soft atmospheric depth
+**`button-primary`** — Lavender CTA. The default primary CTA across all pages.
+- Background `{colors.primary}`, text `{colors.on-primary}`, type `{typography.button}`, padding 8px 14px, rounded `{rounded.md}`.
+- Pressed state lives in `button-primary-pressed` (background shifts to `{colors.primary-focus}`).
+- Hover state lives in `button-primary-hover` (background shifts to `{colors.primary-hover}` lighter lavender).
 
-## 7. Do's and Don'ts
+**`button-secondary`** — Charcoal button. Used for secondary CTAs ("Sign in", "Read changelog").
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.button}`, padding 8px 14px, rounded `{rounded.md}`. 1px `{colors.hairline}` border.
+
+**`button-tertiary`** — Plain text button.
+- Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.button}`, rounded `{rounded.md}`, padding 8px 14px.
+
+**`button-inverse`** — White-on-dark inverse CTA.
+- Background `{colors.inverse-canvas}`, text `{colors.inverse-ink}`, type `{typography.button}`, rounded `{rounded.md}`, padding 8px 14px.
+
+### Pricing Tabs
+
+**`pricing-tab-default`** + **`pricing-tab-selected`** — Pill-toggle on `/pricing`.
+- Default: `{colors.canvas}` background, `{colors.ink-subtle}` text, rounded `{rounded.pill}`, padding 6px 14px.
+- Selected: `{colors.surface-2}` background, `{colors.ink}` text — selected = surface lift.
+
+### Cards & Containers
+
+**`pricing-card`** — Each tier on `/pricing`.
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.lg}`, padding 24px. 1px `{colors.hairline}` border.
+
+**`pricing-card-featured`** — Recommended tier — surface lift to surface-2.
+- Background `{colors.surface-2}`, otherwise identical structure.
+
+**`feature-card`** — Generic feature highlight tile.
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.lg}`, padding 24px.
+
+**`product-screenshot-card`** — The dominant card type — frames a high-fidelity Linear app UI screenshot.
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.xl}`, padding 24px.
+
+**`testimonial-card`** — Customer quote with avatar + name + role.
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body-lg}`, rounded `{rounded.lg}`, padding 32px.
+
+**`customer-logo-tile`** — Small tile in the customer marquee.
+- Background `{colors.canvas}`, text `{colors.ink-subtle}`, type `{typography.caption}`, rounded `{rounded.xs}`, padding 16px.
+
+**`cta-banner`** — Closing CTA panel near page bottom.
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.headline}`, rounded `{rounded.lg}`, padding 48px.
+
+### Inputs & Forms
+
+**`text-input`** + **`text-input-focused`** — Form fields on `/contact/sales` and signup overlays.
+- Background `{colors.surface-1}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.md}`, padding 8px 12px.
+- Focused state retains the same surface; the focus ring is a 2px `{colors.primary-focus}` outline at 50% opacity.
+
+### Status & Build Page
+
+**`changelog-row`** — Each row in `/build` (changelog page) listing version, date, and changes.
+- Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body}`, rounded `{rounded.xs}`, padding 24px 0. 1px `{colors.hairline}` bottom rule.
+
+**`status-badge`** — Small status pill.
+- Background `{colors.surface-2}`, text `{colors.ink-muted}`, type `{typography.caption}`, rounded `{rounded.pill}`, padding 2px 8px.
+
+### Navigation
+
+**`top-nav`** — Sticky dark bar with the Linear wordmark left, primary nav links centered, and a `button-secondary` ("Sign in") + `button-primary` ("Get started") pair right.
+- Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body-sm}`, height 56px.
+
+### Footer
+
+**`footer`** — Dense link grid on `{colors.canvas}` with the Linear wordmark left.
+- Background `{colors.canvas}`, text `{colors.ink-subtle}`, type `{typography.caption}`, padding 64px 32px.
+
+## Do's and Don'ts
 
 ### Do
-- Use Canvas Cream (`#F3F0EE`) as the default body background — never pure white
-- Mask service/feature imagery as perfect circles, not rectangles or rounded rectangles
-- Attach a white satellite CTA to the bottom-right of each circular portrait
-- Set headlines in MarkForMC weight 500 with -2% letter-spacing
-- Use weight 450 (not 400) for body paragraphs
-- Keep primary CTAs as Ink Black pills (20px radius) with cream text
-- Use Signal Orange only on consent, legal, or compliance actions
-- Float the nav as a rounded white pill below the viewport top, not flush at y=0
-- Build page rhythm from three surface tones: canvas cream → lifted cream → ink footer
-- Use thin Light Signal Orange arcs between service cards to imply connection
+
+- Reserve `{colors.canvas}` (#010102) as the system's anchor surface — the faint blue tint is intentional.
+- Use `{colors.primary}` lavender ONLY for: brand mark, primary CTA, focus ring, link emphasis.
+- Use the four-step surface ladder for hierarchy. Avoid skipping levels.
+- Pair display weight 600 with body weight 400 — Linear resists 700+ display weights.
+- Apply negative letter-spacing aggressively on display.
+- Use product UI screenshots as the protagonist of every section.
+- Compose CTAs as `{rounded.md}` 8px corners.
 
 ### Don't
-- Don't use pure white as a page background — it breaks the warm editorial tone
-- Don't round image frames at 8–16px — Mastercard either uses full-pill, 40px, or full-circle. In-between radii look generic
-- Don't use Signal Orange for marketing CTAs — it reads as cookie-consent orange and dilutes the legal color signal
-- Don't mix typefaces — no serif accent, no script, no secondary display font
-- Don't crowd the nav with more than six top-level links — the pill is meant to feel airy
-- Don't drop hard shadows — all elevation should use 48px+ spread and ≤10% opacity
-- Don't use uppercase for anything larger than the 14px eyebrow label
-- Don't omit the tiny accent dot before eyebrow labels — it's the identity
-- Don't place circular portraits on a grid — their magic comes from asymmetric placement
 
-## 8. Responsive Behavior
+- Don't ship a light-mode marketing page.
+- Don't use lavender as a section background or card fill.
+- Don't introduce a second chromatic accent (orange, pink, green for marketing).
+- Don't add atmospheric gradients or spotlight cards.
+- Don't pill-round CTAs.
+- Don't use `#000000` true black as the canvas.
+- Don't combine multiple bright accents in product screenshot mockups.
+
+## Responsive Behavior
 
 ### Breakpoints
 
 | Name | Width | Key Changes |
-|------|-------|-------------|
-| Mobile | ≤ 767px | Nav pill shows logo + menu + search only; primary links hide behind hamburger; service portraits stack single-column centered; hero headline drops from 64px to ~40px; footer columns collapse into a vertical accordion |
-| Tablet | 768–1023px | Nav pill shows 2–3 primary links truncated; service portraits arrange 2-up; hero headline ~48px |
-| Desktop | ≥ 1024px | Full nav with 5 primary links centered; service portraits asymmetrically placed with decorative orbital lines; hero headline 64px |
-| Wide | ≥ 1440px | Content max-width caps at ~1280px; gutters grow symmetrically; orbital lines extend further |
+|---|---|---|
+| Desktop-XL | 1440px | Default desktop layout |
+| Desktop | 1280px | Card grid 3-up maintained |
+| Tablet | 1024px | Card grid 3-up → 2-up |
+| Mobile-Lg | 768px | Pricing comparison becomes accordion; nav hamburger |
+| Mobile | 480px | Single-column; display-xl scales 80px → ~36px |
 
 ### Touch Targets
-All interactive elements comfortably exceed 44×44px. The satellite CTA (circle + arrow) is ~50–60px. The nav pill buttons are ~48px tall. Mobile hamburger and search are 48×48px. No link or button drops below 40px in any breakpoint.
+
+- CTAs hold ≥40px tap height across viewports.
+- Pricing tab pills hold ≥36px tap height; touch viewports grow to ≥44px.
+- Form inputs hold ≥44px tap target on touch.
 
 ### Collapsing Strategy
-- **Nav**: full pill → compact pill with hamburger. Pill shape is preserved across breakpoints — always rounded, always floating.
-- **Service grid**: asymmetric constellation → 2-up → 1-up stack. Orbital arcs are removed on mobile (they only work with asymmetric placement).
-- **Spacing**: section vertical padding compresses from 128px to 48px on mobile.
-- **Content**: two-column hero (headline left / supporting text right) becomes stacked (headline on top, supporting text below).
-- **Footer**: 4 columns → 1 column accordion with chevron toggles per section.
+
+- **Top nav**: links collapse to hamburger below 768px.
+- **Card grids**: 3-up → 2-up at 1024px → 1-up below 768px.
+- **Pricing comparison**: per-tier accordion below 768px.
+- **Display type**: `{typography.display-xl}` 80px scales toward `{typography.display-md}` 40px on mobile.
 
 ### Image Behavior
-Circular portraits scale proportionally (maintaining the perfect circle at every size). Hero video frames maintain their 40px radius at every breakpoint, but the frame itself shrinks with the viewport. Lazy loading is standard with a cream-tinted blur-up placeholder, preserving the palette during load.
 
-## 9. Agent Prompt Guide
+- Product UI screenshots maintain aspect ratio and never crop.
+- Customer logos in the marquee may collapse from 6-up to 3-up below 768px.
 
-### Quick Color Reference
-- Primary CTA: "Ink Black (`#141413`) — the warm near-black used for primary pill buttons and footer"
-- Background: "Canvas Cream (`#F3F0EE`) — warm putty body canvas, never pure white"
-- Lifted surface: "Lifted Cream (`#FCFBFA`) — one step lighter than canvas for nested sections"
-- Heading text: "Ink Black (`#141413`)"
-- Body text: "Ink Black (`#141413`) at weight 450"
-- Muted text: "Slate Gray (`#696969`)"
-- Signal / Consent: "Signal Orange (`#CF4500`) — reserve for cookie consent and legal actions"
-- Accent arc: "Light Signal Orange (`#F37338`) — orbital decorative lines only"
-- Border / Outline: "Ink Black at 1.5px for pill buttons; 1px at low opacity elsewhere"
-- Footer: "Ink Black (`#141413`) with White text"
+## Iteration Guide
 
-### Example Component Prompts
-- "Create a circular portrait card 300px in diameter, with a square photograph cropped to a perfect circle. Attach a 56px white satellite button with a dark arrow icon at the bottom-right, so it protrudes ~40% outside the portrait. Below the portrait, add an eyebrow label with a Light Signal Orange dot and uppercase 'SERVICES' text in MarkForMC weight 700 at 14px. Below the eyebrow, set a 24px / weight 500 title in Ink Black."
-- "Design a primary CTA button: Ink Black (`#141413`) background, Canvas Cream (`#F3F0EE`) text, 20px border-radius, 6px vertical and 24px horizontal padding, MarkForMC font at 16px weight 500 with -2% letter-spacing."
-- "Build a floating navigation pill: white background with `rgba(0, 0, 0, 0.04) 0px 4px 24px 0px` shadow, 999px border-radius, ~16px vertical and 40px horizontal internal padding. Position it 24px below the viewport top, centered, with the Mastercard logo at the left, five primary links centered with 48px gap, and a circular 48px search button at the right."
-- "Create a hero media frame: 40px border-radius on all corners, full viewport width minus 48px gutters, ~60% viewport height, dark background for video content. Place it directly on the cream canvas with no shadow."
-- "Design a footer: Ink Black (`#141413`) background, white text, 4-column link grid with uppercase muted column headers at 14px weight 700 +4% tracking. Include a large conversational H2 above the grid, a 1px white-at-30%-opacity horizontal divider below, and a bottom row with copyright, legal small-print links, a pill-shaped country selector, and four social icons."
+1. Focus on ONE component at a time and reference it by its `components:` token name.
+2. When introducing a section, decide first which surface lift it lives on.
+3. Default body to `{typography.body}` at weight 400.
+4. Run `npx @google/design.md lint DESIGN.md` after edits.
+5. Add new variants as separate component entries.
+6. Treat lavender as scarce: brand mark, primary CTA, focus, link emphasis.
+7. Lead every section with a product UI screenshot.
 
-### Iteration Guide
-When refining existing screens generated with this design system:
-1. Focus on ONE component at a time — don't redesign multiple surfaces in parallel
-2. Reference specific color names AND hex codes from this document
-3. Use natural language ("warm putty cream", "stadium pill", "circular portrait with satellite CTA") alongside technical values
-4. Describe the desired "feel" (editorial, soft, institutional) alongside specific measurements
-5. When in doubt, reach for one of three radii: 20px (buttons), 40px (hero/stadium), or 999px (pill/nav)
-6. Default backgrounds to Canvas Cream (`#F3F0EE`), not white — this single change shifts the entire mood toward Mastercard
+## Known Gaps
 
-### Known Gaps
-- The live page uses MarkForMC, a proprietary licensed typeface. Sofia Sans is the closest open-source substitute and is listed in Mastercard's own fallback stack.
-- Tablet breakpoint specifics (768–1023px) were inferred from desktop and mobile captures; intermediate layouts may vary per section.
-- The exact "whisper" cream tone used for ghost-watermark headlines behind circular portraits reads between `#E8E2DA` and `#D1CDC7` in captures; the precise value varies per section.
-- Third-party consent orange (`#CF4500`) is Mastercard's documented consent signal and should not be confused with any marketing CTA color.
-- The Mastercard logo mark (red `#EB001B` + yellow `#F79E1B`) is a brand asset, not a UI palette entry.
+- The four-step surface ladder values are extracted directly from Linear's `--color-bg-level-3`, `--color-line-tint`, etc. CSS variables; they are Linear's canonical surface spec.
+- Form-field error and validation styling is not visible on the inspected pages.
+- Light mode is not documented because the marketing site does not ship a light theme.
+- Linear's actual product UI uses a richer color-tag palette (red, orange, yellow, green, blue, purple) for issue priorities and project labels — those colors live in the in-product surfaces shown in mockups.
+- The custom display, text, and mono families are proprietary; an open-source substitute is acceptable.
