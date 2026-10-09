@@ -61,7 +61,7 @@ export function Tracks() {
   if (arc === null) {
     return (
       <div className="space-y-4">
-        <h1 className="text-[36px] leading-[1.05] font-semibold">Tracks</h1>
+        <h1 className="text-[32px] leading-[1.1] font-bold">Tracks</h1>
         <p className="text-muted">
           You don't have an arc yet.{' '}
           <Link to="/" className="font-medium text-fg hover:underline">
@@ -80,7 +80,7 @@ export function Tracks() {
     <div className="mx-auto max-w-[720px] space-y-8">
       <header>
         <div className="font-mono text-muted">{arc.name}</div>
-        <h1 className="mt-1 text-[36px] leading-[1.05] font-semibold">
+        <h1 className="mt-1 text-[32px] leading-[1.1] font-bold">
           {overall === null ? 'Tracks' : `${overall}% of checkpoints done`}
         </h1>
         <p className="mt-2 text-muted">

@@ -119,7 +119,7 @@ export function Friends() {
 
   return (
     <div className="mx-auto max-w-[640px] space-y-8">
-      <h1 className="text-[36px] leading-[1.05] font-semibold">Friends</h1>
+      <h1 className="text-[32px] leading-[1.1] font-bold">Friends</h1>
 
       <form onSubmit={search} className="flex gap-2">
         <input

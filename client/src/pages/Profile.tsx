@@ -75,7 +75,7 @@ function ProfileView({ username }: { username: string }) {
           <Avatar user={user} size="lg" />
         )}
         <div className="min-w-48 flex-1">
-          <h1 className="text-[36px] leading-[1.05] font-semibold">{user.name}</h1>
+          <h1 className="text-[32px] leading-[1.1] font-bold">{user.name}</h1>
           <div className="mt-1 font-mono text-muted">
             @{user.username}
             {arc && ` · ${arc.name} · ${arcPhase(arc)}`}

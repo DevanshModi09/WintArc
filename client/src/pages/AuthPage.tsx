@@ -58,7 +58,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
       <ThemeToggle className="fixed top-5 right-6" />
       <Logo />
-      <h1 className="mt-8 text-[36px] leading-[1.05] font-semibold">{copy.title}</h1>
+      <h1 className="mt-8 text-[32px] leading-[1.1] font-bold">{copy.title}</h1>
       <p className="mt-2 text-muted">Daily goals, streaks and friends for your arc.</p>
 
       <div className="mt-8 space-y-4">

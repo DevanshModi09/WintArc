@@ -3,9 +3,9 @@
 /* Semantic colours: "bg" is the page, "fg" is text and solid fills.
    Dark mode just swaps the values, so components never mention a theme. */
 @theme {
-  --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
-  /* Headings: condensed and set in capitals. */
-  --font-display: 'Oswald', 'Arial Narrow', ui-sans-serif, sans-serif;
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  /* Headings share the body face, set tighter. */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   --color-bg: #ffffff;
   --color-fg: #000000;
@@ -55,8 +55,7 @@ button:disabled {
   h2,
   h3 {
     font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: 0.01em;
+    letter-spacing: -0.03em;
   }
 }
 
