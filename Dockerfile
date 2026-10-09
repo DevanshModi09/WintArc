@@ -18,6 +18,8 @@ RUN npm ci
 COPY . .
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
+# Optional: turns on Google's on-page sign-in button.
+ARG VITE_GOOGLE_CLIENT_ID
 # Generates the Prisma client, type-checks the server and bundles the client.
 RUN npm run build
 

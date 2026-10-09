@@ -1,8 +1,10 @@
 # WintArc
 
-Daily goals, streaks and friends for a 90-day winter arc. Split the arc into
-tracks (Web Dev, DSA, Badminton), give each one a weekly schedule and a few
-goals, and check them off every day it runs.
+Checkpoints, photo proof, streaks and friends for a winter arc. Split the arc
+into tracks (Web Dev, DSA, Badminton), give each one a weekly schedule and a
+list of checkpoints, and on every day a track runs check in with a photo of the
+work on the checkpoint you're up to. An arc can be started from 1 October to
+10 November, begins the day it's created, and ends on 1 January.
 
 - `client/` is a React + Vite + Tailwind single-page app.
 - `server/` is an Express API on Prisma and Postgres.
