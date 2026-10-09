@@ -1,10 +1,36 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Arc, type Track } from '../api'
-import { arcPhase, arcStats } from '../arcStats'
-import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Rewards, StatStrip } from '../components/ArcParts'
+import { useEffect, useRef, useState } from 'react'
+import { api, type Arc, type Goal, type Track } from '../api'
+import { Link } from 'react-router-dom'
+import { arcPhase, arcStats, trackProgress } from '../arcStats'
+import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Rewards, StatStrip } from '../components/ArcParts'
+import { downloadCalendar } from '../calendar'
+import { scheduleSummary, weeklyPlan } from '../schedule'
+import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
 
-type Run = (action: () => Promise<{ arc: Arc | null }>) => Promise<void>
+// `optimistic` is what the arc should look like once the action succeeds. It
+// is shown straight away, so ticking a goal doesn't wait on the network.
+type Run = (action: () => Promise<{ arc: Arc | null }>, optimistic?: Arc) => Promise<void>
+
+function mapGoals(arc: Arc, change: (goal: Goal) => Goal): Arc {
+  const tracks = arc.tracks.map((t) => ({ ...t, goals: t.goals.map(change) }))
+  const count = (list: Track[]) => list.flatMap((t) => (t.dueToday ? t.goals : [])).filter((g) => g.doneToday).length
+  return { ...arc, tracks, today: { ...arc.today, done: arc.today.done + count(tracks) - count(arc.tracks) } }
+}
+
+// Ticking a goal ticks its mini tasks along with it.
+const withCheckIn = (arc: Arc, goalId: string, done: boolean) =>
+  mapGoals(arc, (g) =>
+    g.id === goalId ? { ...g, doneToday: done, subtasks: g.subtasks.map((s) => ({ ...s, done })) } : g,
+  )
+
+// A goal with mini tasks is done exactly when all of them are.
+const withSubtaskCheck = (arc: Arc, subtaskId: string, done: boolean) =>
+  mapGoals(arc, (g) => {
+    if (!g.subtasks.some((s) => s.id === subtaskId)) return g
+    const subtasks = g.subtasks.map((s) => (s.id === subtaskId ? { ...s, done } : s))
+    return { ...g, subtasks, doneToday: subtasks.every((s) => s.done) }
+  })
 
 export function Today() {
   // undefined = still loading
@@ -13,24 +39,41 @@ export function Today() {
   const [confirmEnd, setConfirmEnd] = useState(false)
   const [error, setError] = useState('')
 
+  // Counts requests, so a slow early response can't overwrite a newer one.
+  const latest = useRef(0)
+  useTitle()
+
   // Every arc endpoint returns the fresh arc, so one helper handles them all.
-  const run: Run = async (action) => {
+  const run: Run = async (action, optimistic) => {
+    const id = ++latest.current
     setError('')
+    if (optimistic) setArc(optimistic)
     try {
-      setArc((await action()).arc)
+      const res = await action()
+      if (id === latest.current) setArc(res.arc)
     } catch (err) {
       setError((err as Error).message)
+      // Put back whatever the server really has.
+      if (optimistic) api.getArc().then((res) => id === latest.current && setArc(res.arc), () => {})
     }
   }
 
   useEffect(() => {
-    api
-      .getArc()
-      .then((res) => setArc(res.arc))
-      .catch((err: Error) => setError(err.message))
+    const load = () => {
+      const id = ++latest.current
+      api.getArc().then(
+        (res) => id === latest.current && setArc(res.arc),
+        (err: Error) => setError(err.message),
+      )
+    }
+    load()
+    // Coming back to the tab picks up a new day, or check-ins made elsewhere.
+    const onVisible = () => document.visibilityState === 'visible' && load()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  if (arc === undefined) return <ErrorNote message={error} />
+  if (arc === undefined) return error ? <ErrorNote message={error} /> : <Loading />
   if (arc === null || startingNew) {
     return (
       <ArcSetup
@@ -54,14 +97,16 @@ export function Today() {
           <div className="font-mono text-muted">
             {arc.name} · {arcPhase(arc)}
           </div>
-          <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.03em]">
+          <h1 className="mt-1 text-[36px] leading-[1.05] font-semibold">
             {arc.isOver
               ? `Finished with ${arc.perfectDays} perfect days`
               : notStarted
                 ? `Starts on ${startDay}`
-                : arc.today.done === arc.today.total && arc.today.total > 0
-                ? 'Day locked in'
-                : `${arc.today.done} of ${arc.today.total} done today`}
+                : arc.today.total === 0 && arc.tracks.some((t) => t.goals.length > 0)
+                  ? 'Rest day'
+                  : arc.today.done === arc.today.total && arc.today.total > 0
+                    ? 'Day locked in'
+                    : `${arc.today.done} of ${arc.today.total} done today`}
           </h1>
         </div>
         {arc.isOver ? (
@@ -85,9 +130,18 @@ export function Today() {
             </button>
           </div>
         ) : (
-          <button className="btn-outline" onClick={() => setConfirmEnd(true)}>
-            End arc
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-outline"
+              title="Downloads a calendar file with a repeating event for each track"
+              onClick={() => downloadCalendar(arc)}
+            >
+              Add to calendar
+            </button>
+            <button className="btn-outline" onClick={() => setConfirmEnd(true)}>
+              End arc
+            </button>
+          </div>
         )}
       </header>
 
@@ -96,8 +150,10 @@ export function Today() {
 
       <div className="flex flex-wrap items-start gap-8">
         <div className="min-w-0 flex-[999_1_420px] space-y-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="h2">Tracks</h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="h2">
+              Tracks <span className="label ml-1.5 font-normal">{weeklyPlan(arc.tracks)} a week</span>
+            </h2>
             {notStarted ? (
               <span className="label">Set up your tracks now. Check-ins open on day 1.</span>
             ) : nextBadge && (
@@ -110,12 +166,16 @@ export function Today() {
             <TrackCard
               key={track.id}
               track={track}
-              editable={!arc.isOver}
               canCheckIn={!arc.isOver && !notStarted}
-              run={run}
+              checkIn={(goalId, done) => run(() => api.checkIn(goalId, done), withCheckIn(arc, goalId, done))}
+              checkSubtask={(id, done) => run(() => api.checkSubtask(id, done), withSubtaskCheck(arc, id, done))}
             />
           ))}
-          {!arc.isOver && <NewTrack run={run} />}
+          {!arc.isOver && (
+            <Link to="/tracks" className="btn-outline">
+              Edit tracks
+            </Link>
+          )}
         </div>
 
         <aside className="min-w-0 flex-[1_1_300px] space-y-6">
@@ -128,115 +188,78 @@ export function Today() {
   )
 }
 
-type TrackCardProps = { track: Track; editable: boolean; canCheckIn: boolean; run: Run }
+type TrackCardProps = {
+  track: Track
+  canCheckIn: boolean
+  checkIn: (goalId: string, done: boolean) => void
+  checkSubtask: (subtaskId: string, done: boolean) => void
+}
 
-function TrackCard({ track, editable, canCheckIn, run }: TrackCardProps) {
-  const [draft, setDraft] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
-
-  function addGoal(e: FormEvent) {
-    e.preventDefault()
-    const title = draft.trim()
-    if (!title) return
-    setDraft('')
-    run(() => api.addGoal(track.id, title))
-  }
+// Today is only for ticking things off. Tracks are set up on the Tracks page.
+function TrackCard({ track, canCheckIn, checkIn, checkSubtask }: TrackCardProps) {
+  // Off-days only matter once check-ins are open.
+  const restDay = canCheckIn && !track.dueToday
+  const progress = trackProgress(track)
+  const locked = !canCheckIn || restDay
+  const dim = restDay ? '' : 'disabled:opacity-100'
 
   return (
     <section className="card">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3">
         <h3 className="flex-1 font-semibold">{track.name}</h3>
-        <span className="font-mono text-[13px] text-muted">{track.streak.current}d streak</span>
-        <button
-          className="rounded-md border border-line px-2 py-1 text-[13px] hover:border-fg"
-          title={track.isPublic ? 'Visible on your profile. Click to make private.' : 'Only you can see this. Click to make public.'}
-          onClick={() => run(() => api.updateTrack(track.id, { isPublic: !track.isPublic }))}
-        >
-          {track.isPublic ? 'Public' : 'Private'}
-        </button>
-        {confirmDelete ? (
-          <>
-            <button className="text-[13px] font-medium text-danger" onClick={() => run(() => api.deleteTrack(track.id))}>
-              Delete track
-            </button>
-            <button className="text-[13px] text-muted" onClick={() => setConfirmDelete(false)}>
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button className="px-1 text-muted hover:text-fg" aria-label={`Delete ${track.name}`} onClick={() => setConfirmDelete(true)}>
-            ✕
-          </button>
+        {progress !== null && (
+          <Link to="/tracks" className="font-mono text-[13px] text-muted hover:text-fg" title="Checkpoints done. Open Tracks to tick them.">
+            {progress}%
+          </Link>
         )}
+        <span className="font-mono text-[13px] text-muted">
+          {restDay ? 'rest day · ' : ''}
+          {track.streak.current}d streak
+        </span>
+        <span className="label hidden sm:inline">{scheduleSummary(track)}</span>
       </div>
 
+      {track.goals.length === 0 && (
+        <p className="label px-4 py-3">
+          No daily goals yet.{' '}
+          <Link to="/tracks" className="text-fg hover:underline">
+            Add some in Tracks
+          </Link>
+          .
+        </p>
+      )}
+
       {track.goals.map((goal) => (
-        <div key={goal.id} className="flex items-center border-b border-line last:border-b-0">
+        <div key={goal.id} className="border-b border-line last:border-b-0">
           <button
-            className="flex min-h-11 flex-1 items-center gap-3 px-4 text-left disabled:opacity-100"
+            className={`flex min-h-11 w-full items-center gap-3 px-4 text-left ${dim}`}
             aria-pressed={goal.doneToday}
-            disabled={!canCheckIn}
-            onClick={() => run(() => api.checkIn(goal.id, !goal.doneToday))}
+            disabled={locked}
+            onClick={() => checkIn(goal.id, !goal.doneToday)}
           >
             <Checkbox checked={goal.doneToday} />
             <span className={`flex-1 ${goal.doneToday ? 'text-muted line-through' : ''}`}>{goal.title}</span>
+            {goal.subtasks.length > 0 && (
+              <span className="font-mono text-[13px] text-muted">
+                {goal.subtasks.filter((s) => s.done).length}/{goal.subtasks.length}
+              </span>
+            )}
             <span className="font-mono text-[13px] text-muted">{goal.streak.current}d</span>
           </button>
-          <button
-            className="px-4 text-muted hover:text-fg"
-            aria-label={`Delete ${goal.title}`}
-            onClick={() => run(() => api.deleteGoal(goal.id))}
-          >
-            ✕
-          </button>
+          {goal.subtasks.map((sub) => (
+            <button
+              key={sub.id}
+              className={`flex min-h-9 w-full items-center gap-3 pr-4 pl-11 text-left text-[13px] ${dim}`}
+              aria-pressed={sub.done}
+              disabled={locked}
+              onClick={() => checkSubtask(sub.id, !sub.done)}
+            >
+              <Checkbox checked={sub.done} />
+              <span className={sub.done ? 'text-muted line-through' : ''}>{sub.title}</span>
+            </button>
+          ))}
         </div>
       ))}
-
-      {editable && (
-        <form onSubmit={addGoal} className="flex items-center gap-3 px-4">
-          <span className="w-4 text-center text-muted">+</span>
-          <input
-            className="h-11 flex-1 bg-transparent outline-none placeholder:text-muted"
-            placeholder="Add a daily goal"
-            aria-label={`Add a daily goal to ${track.name}`}
-            maxLength={80}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-        </form>
-      )}
     </section>
-  )
-}
-
-function NewTrack({ run }: { run: Run }) {
-  const [name, setName] = useState('')
-  const [isPublic, setIsPublic] = useState(true)
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    const trimmed = name.trim()
-    if (!trimmed) return
-    setName('')
-    run(() => api.addTrack({ name: trimmed, isPublic }))
-  }
-
-  return (
-    <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      <input
-        className="input min-w-40 flex-1"
-        placeholder="New track, e.g. Web Dev"
-        aria-label="New track name"
-        maxLength={40}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <button type="button" className="btn-outline" onClick={() => setIsPublic(!isPublic)}>
-        {isPublic ? 'Public' : 'Private'}
-      </button>
-      <button className="btn" disabled={!name.trim()}>
-        Add track
-      </button>
-    </form>
   )
 }

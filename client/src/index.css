@@ -3,7 +3,9 @@
 /* Semantic colours: "bg" is the page, "fg" is text and solid fills.
    Dark mode just swaps the values, so components never mention a theme. */
 @theme {
-  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+  /* Headings: condensed and set in capitals. */
+  --font-display: 'Oswald', 'Arial Narrow', ui-sans-serif, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   --color-bg: #ffffff;
   --color-fg: #000000;
@@ -35,7 +37,7 @@ body {
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -48,23 +50,42 @@ button:disabled {
   opacity: 0.5;
 }
 
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+}
+
 @layer components {
   .card {
-    @apply rounded-lg border border-line bg-bg;
+    @apply rounded-[20px] border border-line bg-bg;
+  }
+  /* Rows with their own background follow the card's rounded corners. */
+  .card > :first-child {
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+  .card > :last-child {
+    border-bottom-right-radius: inherit;
+    border-bottom-left-radius: inherit;
   }
   .input {
-    @apply h-10 w-full rounded-md border border-line bg-bg px-3 outline-none placeholder:text-muted focus:border-fg;
+    @apply h-10 w-full rounded-xl border border-line bg-bg px-3.5 outline-none placeholder:text-muted focus:border-fg;
   }
   .btn {
-    @apply inline-flex h-10 items-center justify-center rounded-md bg-fg px-4 font-medium whitespace-nowrap text-bg transition hover:bg-fg/80;
+    @apply inline-flex h-10 items-center justify-center rounded-full bg-fg px-5 font-medium whitespace-nowrap text-bg transition hover:bg-fg/80;
   }
   .btn-outline {
-    @apply inline-flex h-10 items-center justify-center rounded-md border border-line bg-bg px-4 font-medium whitespace-nowrap transition hover:border-fg;
+    @apply inline-flex h-10 items-center justify-center rounded-full border border-line bg-bg px-5 font-medium whitespace-nowrap transition hover:border-fg;
   }
   .label {
     @apply text-[13px] text-muted;
   }
   .h2 {
-    @apply text-base font-semibold;
+    @apply text-lg font-semibold;
   }
 }

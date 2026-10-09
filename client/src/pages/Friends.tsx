@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, type Friends as FriendsData, type PublicUser, type RelationInfo } from '../api'
+import { api, type ArcSummary, type Friends as FriendsData, type PublicUser, type RelationInfo } from '../api'
 import { arcPhase } from '../arcStats'
-import { Avatar, ErrorNote } from '../components/ArcParts'
+import { Avatar, ErrorNote, Loading } from '../components/ArcParts'
+import { useTitle } from '../useTitle'
 
 type SearchResult = PublicUser & RelationInfo
 
@@ -18,6 +19,64 @@ function UserLink({ user }: { user: PublicUser }) {
   )
 }
 
+// The ways to rank the leaderboard, each with the number it shows.
+const RANKINGS = {
+  Streak: { score: (arc: ArcSummary) => arc.streak.current, show: (arc: ArcSummary) => `${arc.streak.current}d` },
+  XP: { score: (arc: ArcSummary) => arc.xp, show: (arc: ArcSummary) => arc.xp.toLocaleString() },
+  Level: { score: (arc: ArcSummary) => arc.level.number, show: (arc: ArcSummary) => `L${arc.level.number}` },
+}
+type Ranking = keyof typeof RANKINGS
+
+function Leaderboard({ data }: { data: FriendsData }) {
+  const [ranking, setRanking] = useState<Ranking>('Streak')
+  const { score, show } = RANKINGS[ranking]
+  const rows = [{ ...data.me, isMe: true }, ...data.friends.map((f) => ({ ...f, isMe: false }))]
+    // People without an arc go last. Ties keep the order they arrived in.
+    .sort((a, b) => (b.arc ? score(b.arc) : -1) - (a.arc ? score(a.arc) : -1))
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="h2">Leaderboard</h2>
+        <div className="flex gap-1.5" role="group" aria-label="Rank by">
+          {(Object.keys(RANKINGS) as Ranking[]).map((r) => (
+            <button
+              key={r}
+              className={`h-8 rounded-full border px-3 font-mono text-[13px] transition ${
+                r === ranking ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg'
+              }`}
+              aria-pressed={r === ranking}
+              onClick={() => setRanking(r)}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ol className="card divide-y divide-line">
+        {rows.map((row, i) => (
+          <li key={row.user.id} className={`flex items-center gap-4 px-4 py-3 ${row.isMe ? 'bg-subtle' : ''}`}>
+            <span className="w-5 font-mono text-[13px] text-muted">{i + 1}</span>
+            <UserLink user={row.isMe ? { ...row.user, name: `${row.user.name} (you)` } : row.user} />
+            {row.arc ? (
+              <>
+                <span className="label hidden sm:inline">
+                  {row.arc.startsIn > 0 || row.arc.isOver
+                    ? arcPhase(row.arc)
+                    : `${row.arc.today.done}/${row.arc.today.total} today`}
+                </span>
+                <span className="w-14 text-right font-mono font-semibold">{show(row.arc)}</span>
+              </>
+            ) : (
+              <span className="label">No active arc</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
 export function Friends() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
@@ -25,6 +84,7 @@ export function Friends() {
   const [results, setResults] = useState<SearchResult[]>()
   const [data, setData] = useState<FriendsData>()
   const [error, setError] = useState('')
+  useTitle('Friends')
 
   const fetchLists = useCallback(
     () => Promise.all([api.getFriends(), q ? api.searchUsers(q) : null]),
@@ -59,7 +119,7 @@ export function Friends() {
 
   return (
     <div className="mx-auto max-w-[640px] space-y-8">
-      <h1 className="text-[28px] font-semibold tracking-[-0.03em]">Friends</h1>
+      <h1 className="text-[36px] leading-[1.05] font-semibold">Friends</h1>
 
       <form onSubmit={search} className="flex gap-2">
         <input
@@ -121,34 +181,16 @@ export function Friends() {
         </section>
       )}
 
-      {data && (
-        <section className="space-y-3">
-          <h2 className="h2">Your friends</h2>
-          {data.friends.length === 0 ? (
+      {!data && !error && <Loading />}
+      {data &&
+        (data.friends.length === 0 ? (
+          <section className="space-y-3">
+            <h2 className="h2">Your friends</h2>
             <p className="text-muted">No friends yet. Search for someone above to add them.</p>
-          ) : (
-            <div className="card divide-y divide-line">
-              {data.friends.map((f) => (
-                <div key={f.friendshipId} className="flex items-center gap-4 px-4 py-3">
-                  <UserLink user={f.user} />
-                  {f.arc ? (
-                    <>
-                      <span className="label">
-                        {f.arc.startsIn > 0 || f.arc.isOver
-                          ? arcPhase(f.arc)
-                          : `${f.arc.today.done}/${f.arc.today.total} today`}
-                      </span>
-                      <span className="w-12 text-right font-mono font-semibold">{f.arc.streak.current}d</span>
-                    </>
-                  ) : (
-                    <span className="label">No active arc</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+          </section>
+        ) : (
+          <Leaderboard data={data} />
+        ))}
 
       {data && data.outgoing.length > 0 && (
         <section className="space-y-3">

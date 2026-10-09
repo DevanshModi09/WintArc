@@ -2,13 +2,14 @@ import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { api, type User } from './api'
-import { ErrorNote } from './components/ArcParts'
+import { ErrorNote, Loading } from './components/ArcParts'
 import { Layout } from './components/Layout'
 import { AuthPage } from './pages/AuthPage'
 import { Friends } from './pages/Friends'
 import { Onboarding } from './pages/Onboarding'
 import { Profile } from './pages/Profile'
 import { Today } from './pages/Today'
+import { Tracks } from './pages/Tracks'
 import { supabase } from './supabase'
 
 export default function App() {
@@ -21,7 +22,7 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
 
-  if (session === undefined) return null
+  if (session === undefined) return <Loading />
 
   return (
     <BrowserRouter>
@@ -59,7 +60,7 @@ function SignedIn() {
       </main>
     )
   }
-  if (!me) return null
+  if (!me) return <Loading />
   if (!me.user) {
     return <Onboarding suggestedName={me.suggestedName} onDone={(user) => setMe({ ...me, user })} />
   }
@@ -68,6 +69,7 @@ function SignedIn() {
     <Routes>
       <Route element={<Layout user={me.user} />}>
         <Route index element={<Today />} />
+        <Route path="tracks" element={<Tracks />} />
         <Route path="friends" element={<Friends />} />
         <Route path="u/:username" element={<Profile />} />
         <Route path="*" element={<Navigate to="/" replace />} />

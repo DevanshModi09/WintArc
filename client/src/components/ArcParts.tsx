@@ -3,7 +3,7 @@ import { today, type Arc, type DayStatus, type PublicUser } from '../api'
 
 export function Logo() {
   return (
-    <span className="flex items-center gap-2 text-base font-bold">
+    <span className="flex items-center gap-2 font-display text-xl font-semibold tracking-wide uppercase">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <polygon points="12 3 22 21 2 21" />
       </svg>
@@ -98,7 +98,7 @@ export function Rewards({ arc }: { arc: Arc }) {
           <span
             key={b.days}
             title={`${b.days}-day streak · +${b.xp} XP`}
-            className={`rounded-md px-2.5 py-1.5 ${
+            className={`rounded-full px-3 py-1.5 ${
               b.earned ? 'bg-fg text-bg' : 'border border-dashed border-muted/50 text-muted'
             }`}
           >
@@ -128,10 +128,18 @@ export function LevelBar({ arc }: { arc: Arc }) {
   )
 }
 
+export function Loading() {
+  return (
+    <p role="status" className="label py-16 text-center font-mono">
+      Loading…
+    </p>
+  )
+}
+
 export function ErrorNote({ message }: { message: string }) {
   if (!message) return null
   return (
-    <p role="alert" className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2.5 text-danger">
+    <p role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-danger">
       {message}
     </p>
   )

@@ -1,4 +1,4 @@
-import type { Arc, ArcSummary } from './api'
+import type { Arc, ArcSummary, Track } from './api'
 
 // The four headline numbers shown on both the Today and Profile pages.
 export function arcStats(arc: Arc) {
@@ -15,4 +15,11 @@ export function arcPhase(arc: ArcSummary) {
   if (arc.isOver) return 'complete'
   if (arc.startsIn > 0) return `starts in ${arc.startsIn} ${arc.startsIn === 1 ? 'day' : 'days'}`
   return `day ${arc.dayNumber} of ${arc.totalDays}`
+}
+
+// How far along a track is: the share of its checkpoints ticked, as a whole
+// percentage. A track without checkpoints has nothing to measure, so null.
+export function trackProgress({ checkpoints }: Pick<Track, 'checkpoints'>) {
+  if (checkpoints.length === 0) return null
+  return Math.round((checkpoints.filter((c) => c.done).length / checkpoints.length) * 100)
 }

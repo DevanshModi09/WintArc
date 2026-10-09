@@ -58,7 +58,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
       <ThemeToggle className="fixed top-5 right-6" />
       <Logo />
-      <h1 className="mt-8 text-[28px] font-semibold tracking-[-0.03em]">{copy.title}</h1>
+      <h1 className="mt-8 text-[36px] leading-[1.05] font-semibold">{copy.title}</h1>
       <p className="mt-2 text-muted">Daily goals, streaks and friends for your arc.</p>
 
       <div className="mt-8 space-y-4">
@@ -87,7 +87,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
             />
           </label>
           <ErrorNote message={error} />
-          {notice && <p className="rounded-md border border-line bg-subtle px-3 py-2.5">{notice}</p>}
+          {notice && <p className="rounded-xl border border-line bg-subtle px-3 py-2.5">{notice}</p>}
           <button className="btn w-full" disabled={busy}>
             {copy.submit}
           </button>

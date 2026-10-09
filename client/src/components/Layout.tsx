@@ -30,6 +30,9 @@ export function Layout({ user }: { user: User }) {
           <NavLink to="/" end className={navClass}>
             Today
           </NavLink>
+          <NavLink to="/tracks" className={navClass}>
+            Tracks
+          </NavLink>
           <NavLink to="/friends" className={navClass}>
             Friends
           </NavLink>
