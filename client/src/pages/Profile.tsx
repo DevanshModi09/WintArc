@@ -6,6 +6,7 @@ import { toAvatarDataUrl } from '../avatar'
 import { ActivityGrid, Avatar, ErrorNote, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadFile } from '../download'
 import { CommitLog } from '../components/CommitLog'
+import { TrackBars } from '../components/TrackBars'
 import { scheduleSummary, weeklyPlan } from '../schedule'
 import { supabase } from '../supabase'
 import { useTitle } from '../useTitle'
@@ -151,6 +152,7 @@ function ProfileView({ username }: { username: string }) {
         <p className="text-muted">{isSelf ? "You haven't" : `${user.name} hasn't`} started an arc yet.</p>
       ) : (
         <>
+          <TrackBars name={user.name.split(' ')[0]} tracks={arc.tracks} own={isSelf} />
           <div className="flex flex-wrap items-start gap-8">
             <div className="min-w-0 flex-[999_1_420px] space-y-4">
               <h2 className="h2">
