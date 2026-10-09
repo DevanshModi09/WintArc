@@ -12,6 +12,7 @@ const MAX_SUBTASKS_PER_GOAL = 8;
 const MAX_CHECKPOINTS_PER_TRACK = 30;
 
 const subtaskTitle = z.string().trim().min(1, "A mini task can't be empty").max(60);
+const checkpointTitle = z.string().trim().min(1, "A checkpoint can't be empty").max(80);
 
 const goalSchema = z.object({
   title: z.string().trim().min(1, "Goal can't be empty").max(80),
@@ -49,8 +50,11 @@ const createArcSchema = z.object({
   name: z.string().trim().min(1, "Give your arc a name").max(60),
   tracks: z
     .array(
+      // An arc is set up as tracks and their checkpoints. Daily goals are
+      // added afterwards, on Today.
       trackSchema.extend({
-        goals: z.array(goalSchema).min(1, "Every track needs at least one daily goal").max(MAX_GOALS_PER_TRACK),
+        checkpoints: z.array(checkpointTitle).max(MAX_CHECKPOINTS_PER_TRACK).default([]),
+        goals: z.array(goalSchema).max(MAX_GOALS_PER_TRACK).default([]),
       }),
     )
     .min(1, "Add at least one track")
@@ -149,9 +153,10 @@ arcRouter.post("/arc", async (req, res) => {
       startDate,
       endDate: addDays(startDate, ARC_DAYS - 1),
       tracks: {
-        create: tracks.map(({ goals, ...track }) => ({
+        create: tracks.map(({ goals, checkpoints, ...track }) => ({
           ...track,
           goals: { create: goals.map((g) => newGoal(g, startsOn)) },
+          checkpoints: { create: checkpoints.map((title, position) => ({ title, position })) },
         })),
       },
     },
@@ -309,8 +314,6 @@ arcRouter.delete("/subtasks/:id", async (req, res) => {
   res.json(await arcResponse(res.locals.userId, today));
 });
 
-const checkpointTitle = z.string().trim().min(1, "A checkpoint can't be empty").max(80);
-
 async function ownedCheckpoint(userId: string, checkpointId: string) {
   const checkpoint = await prisma.checkpoint.findFirst({
     where: { id: checkpointId, track: { arc: { userId } } },
@@ -329,6 +332,23 @@ arcRouter.post("/checkpoints", async (req, res) => {
   // New ones go to the bottom of the list.
   const last = await prisma.checkpoint.aggregate({ where: { trackId: track.id }, _max: { position: true } });
   await prisma.checkpoint.create({ data: { trackId: track.id, title, position: (last._max.position ?? -1) + 1 } });
+  res.status(201).json(await arcResponse(res.locals.userId, today));
+});
+
+// Several at once, for a list pasted in. They keep the order they came in.
+arcRouter.post("/checkpoints/bulk", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { trackId, titles } = z
+    .object({ trackId: z.string(), titles: z.array(checkpointTitle).min(1).max(MAX_CHECKPOINTS_PER_TRACK) })
+    .parse(req.body);
+  const track = await ownedTrack(res.locals.userId, trackId);
+  const room = MAX_CHECKPOINTS_PER_TRACK - track._count.checkpoints;
+  if (titles.length > room) {
+    throw new HttpError(400, `A track can have up to ${MAX_CHECKPOINTS_PER_TRACK} checkpoints, so there's room for ${room} more`);
+  }
+  const last = await prisma.checkpoint.aggregate({ where: { trackId: track.id }, _max: { position: true } });
+  const start = (last._max.position ?? -1) + 1;
+  await prisma.checkpoint.createMany({ data: titles.map((title, i) => ({ trackId: track.id, title, position: start + i })) });
   res.status(201).json(await arcResponse(res.locals.userId, today));
 });
 

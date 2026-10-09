@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent, type PointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
+import { parseCheckpoints } from '../checkpoints'
 import { Checkbox, ErrorNote, Loading, Lock } from '../components/ArcParts'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
 import { scheduleSummary } from '../schedule'
 import { useTitle } from '../useTitle'
+
+// Matches the server's limit.
+const MAX_CHECKPOINTS = 30
 
 // `optimistic` is shown straight away, so ticking doesn't wait on the network.
 type Run = (action: () => Promise<{ arc: Arc | null }>, optimistic?: Arc) => Promise<void>
@@ -210,6 +214,16 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
     run(() => api.addCheckpoint(track.id, title))
   }
 
+  // Pasting a list adds every line of it as a checkpoint, as far as there's room.
+  function paste(e: ClipboardEvent<HTMLInputElement>) {
+    const text = e.clipboardData.getData('text')
+    if (!text.includes('\n')) return
+    const titles = parseCheckpoints(text).slice(0, MAX_CHECKPOINTS - track.checkpoints.length)
+    if (titles.length === 0) return
+    e.preventDefault()
+    run(() => api.addCheckpoints(track.id, titles))
+  }
+
   return (
     <section className="card">
       <div className="space-y-3 border-b border-line px-4 py-4">
@@ -340,16 +354,17 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
         </div>
       ))}
 
-      {editable && (
+      {editable && track.checkpoints.length < MAX_CHECKPOINTS && (
         <form onSubmit={add} className="flex items-center gap-3 px-4">
           <span className="w-4 text-center text-muted">+</span>
           <input
             className="h-11 flex-1 bg-transparent outline-none placeholder:text-muted"
-            placeholder="Add a checkpoint, then press Enter"
+            placeholder="Add a checkpoint, or paste a whole list"
             aria-label={`Add a checkpoint to ${track.name}`}
             maxLength={80}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onPaste={paste}
           />
         </form>
       )}

@@ -123,8 +123,8 @@ export type FeedEntry = {
 
 export type Commitment = { user: PublicUser & { bio: string | null }; arc: Arc | null }
 
-export type NewGoal = { title: string; subtasks: string[] }
-export type NewTrack = Schedule & { name: string; isPublic: boolean; goals: NewGoal[] }
+// A track as it's set up with a new arc: its plan and its checkpoints.
+export type NewTrack = Schedule & { name: string; isPublic: boolean; checkpoints: string[] }
 
 type ArcResponse = { arc: Arc | null }
 
@@ -193,6 +193,8 @@ export const api = {
 
   addCheckpoint: (trackId: string, title: string) =>
     request<ArcResponse>('POST', '/checkpoints', { trackId, title, today: today() }),
+  addCheckpoints: (trackId: string, titles: string[]) =>
+    request<ArcResponse>('POST', '/checkpoints/bulk', { trackId, titles, today: today() }),
   updateCheckpoint: (id: string, changes: { title?: string; done?: boolean }) =>
     request<ArcResponse>('PATCH', `/checkpoints/${id}`, { ...changes, today: today() }),
   reorderCheckpoints: (trackId: string, ids: string[]) =>

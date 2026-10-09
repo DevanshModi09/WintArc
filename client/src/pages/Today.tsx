@@ -112,8 +112,10 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               ? `Finished with ${arc.perfectDays} perfect days`
               : notStarted
                 ? `Starts on ${startDay}`
-                : arc.today.total === 0 && arc.tracks.some((t) => t.goals.length > 0)
-                  ? 'Rest day'
+                : arc.tracks.every((t) => t.goals.length === 0)
+                  ? 'Add your daily goals'
+                  : arc.today.total === 0
+                    ? 'Rest day'
                   : arc.today.done === arc.today.total && arc.today.total > 0
                     ? 'Day locked in'
                     : `${arc.today.done} of ${arc.today.total} done today`}
