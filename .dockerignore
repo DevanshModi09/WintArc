@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+server/generated
+supabase/.temp
+docs
+*.md
+.DS_Store
