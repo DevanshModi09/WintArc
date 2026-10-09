@@ -1,16 +1,13 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
-import { parseCheckpoints } from '../checkpoints'
 import { Checkbox, ErrorNote, Loading, Lock } from '../components/ArcParts'
+import { CheckpointList, CheckpointWarning } from '../components/CheckpointList'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
 import { scheduleSummary } from '../schedule'
 import { useTitle } from '../useTitle'
-
-// Matches the server's limit.
-const MAX_CHECKPOINTS = 30
 
 // `optimistic` is shown straight away, so ticking doesn't wait on the network.
 type Run = (action: () => Promise<{ arc: Arc | null }>, optimistic?: Arc) => Promise<void>
@@ -88,9 +85,9 @@ export function Tracks() {
           {overall === null ? 'Tracks' : `${overall}% of checkpoints done`}
         </h1>
         <p className="mt-2 text-muted">
-          Set up each track here: its name, when it runs and its checkpoints. Checkpoints are the milestones you tick
-          once, and they fill the track up. Daily goals live on Today. Once the arc is running, a track with goals can't
-          be deleted and can only gain days.
+          Each track's name, when it runs, and its checkpoints: the milestones you tick once, which fill the track up.
+          Checkpoints are fixed when a track is created, so here you can only tick and reorder them. Daily goals live on
+          Today.
         </p>
       </header>
 
@@ -102,7 +99,7 @@ export function Tracks() {
           track={track}
           editable={!arc.isOver}
           run={run}
-          tick={(id, done) => run(() => api.updateCheckpoint(id, { done }), withCheckpoint(arc, id, done))}
+          tick={(id, done) => run(() => api.tickCheckpoint(id, done), withCheckpoint(arc, id, done))}
           reorder={(ids) => run(() => api.reorderCheckpoints(track.id, ids), withOrder(arc, track.id, ids))}
         />
       ))}
@@ -112,33 +109,61 @@ export function Tracks() {
 }
 
 function NewTrack({ run }: { run: Run }) {
+  const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [isPublic, setIsPublic] = useState(true)
+  const [checkpoints, setCheckpoints] = useState<string[]>([])
 
   function submit(e: FormEvent) {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
+    run(() => api.addTrack({ name: trimmed, isPublic, checkpoints }))
     setName('')
-    run(() => api.addTrack({ name: trimmed, isPublic }))
+    setCheckpoints([])
+    setOpen(false)
   }
 
+  if (!open) {
+    return (
+      <button className="btn-outline" onClick={() => setOpen(true)}>
+        Add a track
+      </button>
+    )
+  }
+
+  // The checkpoints go in with the track, because they can't be added later.
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      <input
-        className="input min-w-40 flex-1"
-        placeholder="New track, e.g. Web Dev"
-        aria-label="New track name"
-        maxLength={40}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <button type="button" className="btn-outline" onClick={() => setIsPublic(!isPublic)}>
-        {isPublic ? 'Public' : 'Private'}
-      </button>
-      <button className="btn" disabled={!name.trim()}>
-        Add track
-      </button>
+    <form onSubmit={submit} className="space-y-3">
+      <h2 className="h2">New track</h2>
+      <CheckpointWarning />
+      <div className="card">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+          <input
+            autoFocus
+            className="input min-w-40 flex-1"
+            placeholder="Track name, e.g. Web Dev"
+            aria-label="New track name"
+            maxLength={40}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button type="button" className="btn-outline" onClick={() => setIsPublic(!isPublic)}>
+            {isPublic ? 'Public' : 'Private'}
+          </button>
+        </div>
+        <CheckpointList value={checkpoints} onChange={setCheckpoints} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn" disabled={!name.trim()}>
+          {checkpoints.length === 0
+            ? 'Create track with no checkpoints'
+            : `Create track with ${checkpoints.length} ${checkpoints.length === 1 ? 'checkpoint' : 'checkpoints'}`}
+        </button>
+        <button type="button" className="btn-outline" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
     </form>
   )
 }
@@ -171,7 +196,6 @@ const move = (ids: string[], from: number, to: number) => {
 }
 
 function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressProps) {
-  const [draft, setDraft] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -205,24 +229,6 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
 
   const progress = trackProgress(track)
   const done = track.checkpoints.filter((c) => c.done).length
-
-  function add(e: FormEvent) {
-    e.preventDefault()
-    const title = draft.trim()
-    if (!title) return
-    setDraft('')
-    run(() => api.addCheckpoint(track.id, title))
-  }
-
-  // Pasting a list adds every line of it as a checkpoint, as far as there's room.
-  function paste(e: ClipboardEvent<HTMLInputElement>) {
-    const text = e.clipboardData.getData('text')
-    if (!text.includes('\n')) return
-    const titles = parseCheckpoints(text).slice(0, MAX_CHECKPOINTS - track.checkpoints.length)
-    if (titles.length === 0) return
-    e.preventDefault()
-    run(() => api.addCheckpoints(track.id, titles))
-  }
 
   return (
     <section className="card">
@@ -301,7 +307,7 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
         </div>
         <p className="label">
           {progress === null
-            ? 'No checkpoints yet. Add the milestones you want to hit in this track.'
+            ? 'This track was created without checkpoints.'
             : `${done} of ${track.checkpoints.length} checkpoints done`}
         </p>
       </div>
@@ -334,7 +340,7 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
             </button>
           )}
           <button
-            className={`flex min-h-11 flex-1 items-center gap-3 text-left disabled:opacity-100 ${editable && shown.length > 1 ? 'pr-4' : 'px-4'}`}
+            className={`flex min-h-11 flex-1 items-center gap-3 pr-4 text-left disabled:opacity-100 ${editable && shown.length > 1 ? '' : 'pl-4'}`}
             aria-pressed={checkpoint.done}
             disabled={!editable}
             onClick={() => tick(checkpoint.id, !checkpoint.done)}
@@ -342,32 +348,9 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
             <Checkbox checked={checkpoint.done} />
             <span className={checkpoint.done ? 'text-muted line-through' : ''}>{checkpoint.title}</span>
           </button>
-          {editable && (
-            <button
-              className="py-2 pr-4 pl-2 text-muted hover:text-fg"
-              aria-label={`Delete ${checkpoint.title}`}
-              onClick={() => run(() => api.deleteCheckpoint(checkpoint.id))}
-            >
-              ✕
-            </button>
-          )}
         </div>
       ))}
 
-      {editable && track.checkpoints.length < MAX_CHECKPOINTS && (
-        <form onSubmit={add} className="flex items-center gap-3 px-4">
-          <span className="w-4 text-center text-muted">+</span>
-          <input
-            className="h-11 flex-1 bg-transparent outline-none placeholder:text-muted"
-            placeholder="Add a checkpoint, or paste a whole list"
-            aria-label={`Add a checkpoint to ${track.name}`}
-            maxLength={80}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onPaste={paste}
-          />
-        </form>
-      )}
     </section>
   )
 }

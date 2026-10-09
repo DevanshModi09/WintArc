@@ -46,16 +46,23 @@ const trackSchema = z.object({
   reminder: z.number().int().min(0).max(1440).nullable().optional(),
 });
 
+// A track's checkpoints are fixed the moment it's created: they can be ticked
+// and reordered afterwards, but never added to, reworded or removed. So the
+// whole list comes in with the track.
+const newTrackSchema = trackSchema.extend({
+  checkpoints: z.array(checkpointTitle).max(MAX_CHECKPOINTS_PER_TRACK).default([]),
+});
+
+// The shape Prisma wants for a new track's checkpoints, in the order given.
+const newCheckpoints = (titles: string[]) => ({ create: titles.map((title, position) => ({ title, position })) });
+
 const createArcSchema = z.object({
   name: z.string().trim().min(1, "Give your arc a name").max(60),
   tracks: z
     .array(
       // An arc is set up as tracks and their checkpoints. Daily goals are
       // added afterwards, on Today.
-      trackSchema.extend({
-        checkpoints: z.array(checkpointTitle).max(MAX_CHECKPOINTS_PER_TRACK).default([]),
-        goals: z.array(goalSchema).max(MAX_GOALS_PER_TRACK).default([]),
-      }),
+      newTrackSchema.extend({ goals: z.array(goalSchema).max(MAX_GOALS_PER_TRACK).default([]) }),
     )
     .min(1, "Add at least one track")
     .max(MAX_TRACKS),
@@ -156,7 +163,7 @@ arcRouter.post("/arc", async (req, res) => {
         create: tracks.map(({ goals, checkpoints, ...track }) => ({
           ...track,
           goals: { create: goals.map((g) => newGoal(g, startsOn)) },
-          checkpoints: { create: checkpoints.map((title, position) => ({ title, position })) },
+          checkpoints: newCheckpoints(checkpoints),
         })),
       },
     },
@@ -172,11 +179,11 @@ arcRouter.delete("/arc/:id", async (req, res) => {
 
 arcRouter.post("/tracks", async (req, res) => {
   const today = parseToday(req.body?.today);
-  const track = trackSchema.parse(req.body);
+  const { checkpoints, ...track } = newTrackSchema.parse(req.body);
   const arc = await currentArc(res.locals.userId);
   if (!arc) throw new HttpError(404, "Start an arc first");
   if (arc.tracks.length >= MAX_TRACKS) throw new HttpError(400, `You can have up to ${MAX_TRACKS} tracks`);
-  await prisma.track.create({ data: { ...track, arcId: arc.id } });
+  await prisma.track.create({ data: { ...track, arcId: arc.id, checkpoints: newCheckpoints(checkpoints) } });
   res.status(201).json(await arcResponse(res.locals.userId, today));
 });
 
@@ -322,52 +329,15 @@ async function ownedCheckpoint(userId: string, checkpointId: string) {
   return checkpoint;
 }
 
-arcRouter.post("/checkpoints", async (req, res) => {
-  const today = parseToday(req.body?.today);
-  const { trackId, title } = z.object({ trackId: z.string(), title: checkpointTitle }).parse(req.body);
-  const track = await ownedTrack(res.locals.userId, trackId);
-  if (track._count.checkpoints >= MAX_CHECKPOINTS_PER_TRACK) {
-    throw new HttpError(400, `A track can have up to ${MAX_CHECKPOINTS_PER_TRACK} checkpoints`);
-  }
-  // New ones go to the bottom of the list.
-  const last = await prisma.checkpoint.aggregate({ where: { trackId: track.id }, _max: { position: true } });
-  await prisma.checkpoint.create({ data: { trackId: track.id, title, position: (last._max.position ?? -1) + 1 } });
-  res.status(201).json(await arcResponse(res.locals.userId, today));
-});
-
-// Several at once, for a list pasted in. They keep the order they came in.
-arcRouter.post("/checkpoints/bulk", async (req, res) => {
-  const today = parseToday(req.body?.today);
-  const { trackId, titles } = z
-    .object({ trackId: z.string(), titles: z.array(checkpointTitle).min(1).max(MAX_CHECKPOINTS_PER_TRACK) })
-    .parse(req.body);
-  const track = await ownedTrack(res.locals.userId, trackId);
-  const room = MAX_CHECKPOINTS_PER_TRACK - track._count.checkpoints;
-  if (titles.length > room) {
-    throw new HttpError(400, `A track can have up to ${MAX_CHECKPOINTS_PER_TRACK} checkpoints, so there's room for ${room} more`);
-  }
-  const last = await prisma.checkpoint.aggregate({ where: { trackId: track.id }, _max: { position: true } });
-  const start = (last._max.position ?? -1) + 1;
-  await prisma.checkpoint.createMany({ data: titles.map((title, i) => ({ trackId: track.id, title, position: start + i })) });
-  res.status(201).json(await arcResponse(res.locals.userId, today));
-});
-
 // Checkpoints aren't tied to a day: tick one whenever it's reached, and it
-// stays ticked until it's unticked.
+// stays ticked until it's unticked. Ticking is the only change they allow.
 arcRouter.patch("/checkpoints/:id", async (req, res) => {
   const today = parseToday(req.body?.today);
-  const { title, done } = z.object({ title: checkpointTitle.optional(), done: z.boolean().optional() }).parse(req.body);
+  const { done } = z.strictObject({ done: z.boolean(), today: z.string() }).parse(req.body);
   const checkpoint = await ownedCheckpoint(res.locals.userId, req.params.id);
   // Ticking one that's already ticked keeps the original date.
-  const doneAt = done === undefined ? undefined : done ? (checkpoint.doneAt ?? new Date()) : null;
-  await prisma.checkpoint.update({ where: { id: checkpoint.id }, data: { title, doneAt } });
-  res.json(await arcResponse(res.locals.userId, today));
-});
-
-arcRouter.delete("/checkpoints/:id", async (req, res) => {
-  const today = parseToday(req.query.today);
-  const checkpoint = await ownedCheckpoint(res.locals.userId, req.params.id);
-  await prisma.checkpoint.delete({ where: { id: checkpoint.id } });
+  const doneAt = done ? (checkpoint.doneAt ?? new Date()) : null;
+  await prisma.checkpoint.update({ where: { id: checkpoint.id }, data: { doneAt } });
   res.json(await arcResponse(res.locals.userId, today));
 });
 

@@ -168,7 +168,7 @@ export const api = {
     request<ArcResponse>('POST', '/arc', { ...input, today: today() }),
   deleteArc: (id: string) => request<ArcResponse>('DELETE', `/arc/${id}?today=${today()}`),
 
-  addTrack: (track: { name: string; isPublic: boolean } & Partial<Schedule>) =>
+  addTrack: (track: { name: string; isPublic: boolean; checkpoints: string[] } & Partial<Schedule>) =>
     request<ArcResponse>('POST', '/tracks', { ...track, today: today() }),
   updateTrack: (id: string, changes: { name?: string; isPublic?: boolean } & Partial<Schedule>) =>
     request<ArcResponse>('PATCH', `/tracks/${id}`, { ...changes, today: today() }),
@@ -191,15 +191,11 @@ export const api = {
   checkSubtask: (id: string, done: boolean) =>
     request<ArcResponse>('PUT', `/subtasks/${id}/check`, { done, today: today() }),
 
-  addCheckpoint: (trackId: string, title: string) =>
-    request<ArcResponse>('POST', '/checkpoints', { trackId, title, today: today() }),
-  addCheckpoints: (trackId: string, titles: string[]) =>
-    request<ArcResponse>('POST', '/checkpoints/bulk', { trackId, titles, today: today() }),
-  updateCheckpoint: (id: string, changes: { title?: string; done?: boolean }) =>
-    request<ArcResponse>('PATCH', `/checkpoints/${id}`, { ...changes, today: today() }),
+  // A track's checkpoints are fixed when it's created, so ticking is all there is.
+  tickCheckpoint: (id: string, done: boolean) =>
+    request<ArcResponse>('PATCH', `/checkpoints/${id}`, { done, today: today() }),
   reorderCheckpoints: (trackId: string, ids: string[]) =>
     request<ArcResponse>('PUT', `/tracks/${trackId}/checkpoints/order`, { ids, today: today() }),
-  deleteCheckpoint: (id: string) => request<ArcResponse>('DELETE', `/checkpoints/${id}?today=${today()}`),
 
   searchUsers: (q: string) =>
     request<{ users: (PublicUser & RelationInfo)[] }>('GET', `/users?q=${encodeURIComponent(q)}`),
