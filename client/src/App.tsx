@@ -8,6 +8,7 @@ import { AuthPage } from './pages/AuthPage'
 import { Board } from './pages/Board'
 import { Commitment } from './pages/Commitment'
 import { Friends } from './pages/Friends'
+import { Legal } from './pages/Legal'
 import { Onboarding } from './pages/Onboarding'
 import { Profile } from './pages/Profile'
 import { Today } from './pages/Today'
@@ -36,6 +37,8 @@ export default function App() {
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/signup" element={<AuthPage mode="signup" />} />
           <Route path="/c/:username" element={<Commitment />} />
+          <Route path="/privacy" element={<Legal doc="privacy" />} />
+          <Route path="/terms" element={<Legal doc="terms" />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       )}
@@ -73,6 +76,8 @@ function SignedIn() {
   return (
     <Routes>
       <Route path="c/:username" element={<Commitment signedIn />} />
+      <Route path="privacy" element={<Legal doc="privacy" />} />
+      <Route path="terms" element={<Legal doc="terms" />} />
       <Route element={<Layout user={user} />}>
         <Route index element={<Today user={user} onUser={(next) => setMe({ ...me, user: next })} />} />
         <Route path="board" element={<Board />} />

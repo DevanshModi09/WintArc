@@ -232,6 +232,17 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
             {copy.switchLink}
           </Link>
         </p>
+        <p className="label mt-6">
+          By continuing you agree to the{' '}
+          <Link to="/terms" className="underline underline-offset-2 hover:text-fg">
+            terms
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="underline underline-offset-2 hover:text-fg">
+            privacy page
+          </Link>
+          .
+        </p>
       </section>
     </main>
   )
