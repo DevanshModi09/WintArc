@@ -98,7 +98,7 @@ export function Today() {
           <div className="font-mono text-muted">
             {arc.name} · {arcPhase(arc)}
           </div>
-          <h1 className="mt-1 text-[36px] leading-[1.05] font-semibold">
+          <h1 className="mt-1 text-[32px] leading-[1.1] font-bold">
             {arc.isOver
               ? `Finished with ${arc.perfectDays} perfect days`
               : notStarted
@@ -111,9 +111,14 @@ export function Today() {
           </h1>
         </div>
         {arc.isOver ? (
-          <button className="btn" onClick={() => setStartingNew(true)}>
-            Start next arc
-          </button>
+          <div className="flex items-center gap-2">
+            <Link to="/wrapped" className="btn">
+              See your wrapped
+            </Link>
+            <button className="btn-outline" onClick={() => setStartingNew(true)}>
+              Start next arc
+            </button>
+          </div>
         ) : confirmEnd ? (
           <div className="flex items-center gap-2">
             <span className="text-muted">Delete this arc and its progress?</span>
@@ -185,6 +190,11 @@ export function Today() {
           <ActivityGrid arc={arc} />
           <LevelBar arc={arc} />
           <Rewards arc={arc} />
+          {!arc.isOver && !notStarted && (
+            <Link to="/wrapped" className="label block hover:text-fg">
+              See your arc so far →
+            </Link>
+          )}
         </aside>
       </div>
     </div>

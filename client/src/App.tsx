@@ -10,6 +10,7 @@ import { Onboarding } from './pages/Onboarding'
 import { Profile } from './pages/Profile'
 import { Today } from './pages/Today'
 import { Tracks } from './pages/Tracks'
+import { Wrapped } from './pages/Wrapped'
 import { supabase } from './supabase'
 
 export default function App() {
@@ -70,6 +71,7 @@ function SignedIn() {
       <Route element={<Layout user={me.user} />}>
         <Route index element={<Today />} />
         <Route path="tracks" element={<Tracks />} />
+        <Route path="wrapped" element={<Wrapped user={me.user} />} />
         <Route path="friends" element={<Friends />} />
         <Route path="u/:username" element={<Profile />} />
         <Route path="*" element={<Navigate to="/" replace />} />

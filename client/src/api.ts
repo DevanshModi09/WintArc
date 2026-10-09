@@ -54,6 +54,7 @@ export type Arc = {
   isOver: boolean
   streak: Streak
   perfectDays: number
+  totalCheckIns: number
   today: { done: number; total: number }
   xp: number
   level: Level

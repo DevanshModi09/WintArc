@@ -23,3 +23,25 @@ export function trackProgress({ checkpoints }: Pick<Track, 'checkpoints'>) {
   if (checkpoints.length === 0) return null
   return Math.round((checkpoints.filter((c) => c.done).length / checkpoints.length) * 100)
 }
+
+// The numbers on the end-of-arc wrap.
+export function wrappedStats(arc: Arc) {
+  // Rest days aren't held against you.
+  const daysDue = arc.days.filter((d) => d.status !== 'empty').length
+  const checkpoints = arc.tracks.flatMap((t) => t.checkpoints)
+  // The track you were most consistent on. Ties go to the first one.
+  const topTrack = arc.tracks.reduce<Track | null>((top, t) => (top && top.streak.best >= t.streak.best ? top : t), null)
+  return {
+    perfectDays: arc.perfectDays,
+    consistency: daysDue ? Math.round((arc.perfectDays / daysDue) * 100) : 0,
+    bestStreak: arc.streak.best,
+    totalCheckIns: arc.totalCheckIns,
+    level: arc.level.number,
+    levelTitle: arc.level.title,
+    xp: arc.xp,
+    badges: arc.badges.filter((b) => b.earned).length,
+    checkpointsDone: checkpoints.filter((c) => c.done).length,
+    checkpointsTotal: checkpoints.length,
+    topTrack: topTrack && topTrack.streak.best > 0 ? { name: topTrack.name, bestStreak: topTrack.streak.best } : null,
+  }
+}
