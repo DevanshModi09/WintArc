@@ -1,16 +1,20 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { RequestHandler } from "express";
 import { prisma } from "./db";
+import { env } from "./env";
 import { HttpError } from "./errors";
 
-let client: SupabaseClient | undefined;
+const serverOnly = { auth: { persistSession: false, autoRefreshToken: false } };
 
-function supabase(): SupabaseClient {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY must be set");
-  client ??= createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  return client;
+const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, serverOnly);
+
+// Removes someone's Supabase login. Needs the service role key, so it quietly
+// does nothing on a deployment that hasn't been given one.
+export async function deleteAuthUser(id: string) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return;
+  const admin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, serverOnly);
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) console.error("Could not delete the Supabase login", error);
 }
 
 // Verifies the Supabase access token sent as "Authorization: Bearer <token>".
@@ -19,8 +23,8 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
   const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
   if (!token) throw new HttpError(401, "Not signed in");
   // getClaims checks the signature and expiry; it throws on a malformed token.
-  const claims = await supabase()
-    .auth.getClaims(token)
+  const claims = await supabase.auth
+    .getClaims(token)
     .then(({ data, error }) => (error ? null : data?.claims))
     .catch(() => null);
   if (!claims?.sub) throw new HttpError(401, "Not signed in");

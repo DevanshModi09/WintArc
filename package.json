@@ -9,9 +9,15 @@
     "dev": "concurrently -n server,client -c blue,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w server && npm run build -w client",
     "db:push": "npm run db:push -w server",
-    "db:studio": "npm run db:studio -w server"
+    "db:studio": "npm run db:studio -w server",
+    "start": "npm run start -w server",
+    "lint": "npm run lint -w client",
+    "test": "npm run test -w server && npm run test -w client"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

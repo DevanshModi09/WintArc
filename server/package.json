@@ -5,25 +5,30 @@
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "prisma generate && tsc --noEmit",
-    "start": "tsx --env-file=.env src/index.ts",
+    "start": "NODE_ENV=production tsx --env-file-if-exists=.env src/index.ts",
     "db:push": "prisma db push && prisma db execute --file prisma/rls.sql",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@supabase/supabase-js": "^2.117.2",
+    "compression": "^1.8.2",
     "dotenv": "^18.0.6",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
     "pg": "^8.23.1",
+    "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.1",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
-    "tsx": "^4.23.15",
     "typescript": "^6.0.3"
   }
 }
