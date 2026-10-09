@@ -5,7 +5,7 @@ import { arcPhase, arcStats, trackProgress } from '../arcStats'
 import { toAvatarDataUrl } from '../avatar'
 import { ActivityGrid, Avatar, ErrorNote, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadFile } from '../download'
-import { scheduleSummary } from '../schedule'
+import { scheduleSummary, weeklyPlan } from '../schedule'
 import { supabase } from '../supabase'
 import { useTitle } from '../useTitle'
 
@@ -77,7 +77,7 @@ function ProfileView({ username }: { username: string }) {
         <div className="min-w-48 flex-1">
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
             <h1 className="text-[40px] leading-none font-medium">{user.name}</h1>
-            {arc && <StatLine stats={arcStats(arc)} />}
+            {arc && <StatLine stats={[...arcStats(arc), { label: 'A week', value: weeklyPlan(arc.tracks) }]} />}
           </div>
           <div className="mt-1 font-mono text-muted">
             @{user.username}
@@ -152,7 +152,10 @@ function ProfileView({ username }: { username: string }) {
         <>
           <div className="flex flex-wrap items-start gap-8">
             <div className="min-w-0 flex-[999_1_420px] space-y-4">
-              <h2 className="h2">{isSelf ? 'Your tracks' : 'Public tracks'}</h2>
+              <h2 className="h2">
+                {isSelf ? 'Your tracks' : 'Public tracks'}{' '}
+                {arc.tracks.length > 0 && <span className="label ml-1.5 font-normal">{weeklyPlan(arc.tracks)} a week</span>}
+              </h2>
               {arc.tracks.length === 0 && <p className="text-muted">No public tracks.</p>}
               {arc.tracks.map((track) => (
                 <section key={track.id} className="card">
