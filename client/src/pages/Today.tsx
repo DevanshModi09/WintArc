@@ -301,8 +301,8 @@ function SharePage({ user, onUser }: { user: User; onUser: (user: User) => void 
 }
 
 // One track for today. The task is whichever checkpoint the track is up to:
-// check in with a photo of the work, and finish the checkpoint when it's done
-// to move on to the next.
+// commit with a message saying what you did and a photo of the work, and
+// finish the checkpoint when it's done to move on to the next.
 function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -311,6 +311,8 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
   const progress = trackProgress(track)
   const { active } = track
   const next = active && track.checkpoints[active.number]
+  // Replacing the photo keeps the message that's already there.
+  const message = note.trim() || (track.proof?.note ?? '')
 
   async function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -319,7 +321,7 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
     if (!file) return
     setBusy(true)
     await run(async () =>
-      api.checkIn(track.id, { photo: await uploadProof(file), note: note.trim() || (track.proof?.note ?? '') }),
+      api.checkIn(track.id, { photo: await uploadProof(file), note: message }),
     )
     setNote('')
     setBusy(false)
@@ -354,8 +356,8 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
           <div className="flex flex-wrap items-center gap-4">
             <ProofPhoto path={track.proof.photo} alt="Today's proof" className="size-20 rounded-field" />
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Checked in today</div>
-              {track.proof.note && <p className="label mt-0.5 break-words">{track.proof.note}</p>}
+              <div className="label">Committed today</div>
+              {track.proof.note && <p className="mt-0.5 font-medium break-words">{track.proof.note}</p>}
               <p className="label mt-1">Only you can see this photo.</p>
             </div>
             {open && (
@@ -370,16 +372,24 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
           <div className="flex flex-wrap gap-2">
             <input
               className="input min-w-48 flex-1"
-              placeholder="What did you do? (optional)"
-              aria-label={`A line about today's work on ${track.name}`}
+              placeholder="Commit message: what did you do?"
+              aria-label={`Commit message for today's work on ${track.name}`}
+              required
               maxLength={200}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
-            <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>
-              {busy ? 'Uploading…' : 'Upload photo to check in'}
+            <button
+              className="btn"
+              disabled={busy || !message}
+              title={message ? undefined : 'Write a commit message first'}
+              onClick={() => fileInput.current?.click()}
+            >
+              {busy ? 'Uploading…' : 'Add photo and commit'}
             </button>
-            <p className="label w-full">Your photo stays private. Friends see that you checked in, not the photo.</p>
+            <p className="label w-full">
+              Friends see your message. The photo stays private: it's your proof, and only you can see it.
+            </p>
           </div>
         )}
       </div>

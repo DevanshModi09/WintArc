@@ -4,6 +4,7 @@ import { api, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
 import { Checkbox, ErrorNote, Loading } from '../components/ArcParts'
 import { CheckpointList, CheckpointWarning } from '../components/CheckpointList'
+import { CommitLog } from '../components/CommitLog'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
 import { scheduleSummary } from '../schedule'
@@ -351,6 +352,7 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
         </div>
       ))}
 
+      <CommitLog commits={track.commits} />
     </section>
   )
 }

@@ -180,3 +180,20 @@ test("a check-in on the day a track is finished still counts", () => {
   assert.deepEqual(view.days.map((d) => d.status), ["perfect", "perfect", "empty"]);
   assert.equal(view.totalCheckIns, 2);
 });
+
+test("a track lists its commits newest first, with the checkpoint each went towards", () => {
+  const g = {
+    ...goal("g", []),
+    checkIns: [
+      { date: "2026-11-01", note: "set up the repo", photo: "u/a.jpg", checkpointId: "arrays" },
+      { date: "2026-11-02", note: "two pointer problems", photo: "u/b.jpg", checkpointId: "strings" },
+    ],
+  };
+  const t = { ...track("t", [g]), checkpoints: [checkpoint("arrays", "2026-11-01"), checkpoint("strings", null)] };
+  const view = buildArcView(arc(t), "2026-11-02", { publicOnly: true });
+  assert.deepEqual(view.tracks[0].commits, [
+    { date: "2026-11-02", note: "two pointer problems", checkpoint: "strings" },
+    { date: "2026-11-01", note: "set up the repo", checkpoint: "arrays" },
+  ]);
+  assert.deepEqual(view.days[1], { date: "2026-11-02", status: "perfect", done: 1, total: 1 });
+});

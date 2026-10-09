@@ -8,6 +8,7 @@ import { AdminPeople, AdminPerson, AdminUploads } from './pages/Admin'
 import { AuthPage } from './pages/AuthPage'
 import { Board } from './pages/Board'
 import { Commitment } from './pages/Commitment'
+import { Feed } from './pages/Feed'
 import { Friends } from './pages/Friends'
 import { Legal } from './pages/Legal'
 import { Onboarding } from './pages/Onboarding'
@@ -81,6 +82,7 @@ function SignedIn() {
       <Route path="terms" element={<Legal doc="terms" />} />
       <Route element={<Layout user={user} />}>
         <Route index element={<Today user={user} onUser={(next) => setMe({ ...me, user: next })} />} />
+        <Route path="feed" element={<Feed />} />
         <Route path="board" element={<Board />} />
         {user.isAdmin && (
           <>

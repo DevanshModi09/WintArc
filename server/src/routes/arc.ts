@@ -52,14 +52,6 @@ const createArcSchema = z.object({
   tracks: z.array(newTrackSchema).min(1, "Add at least one track").max(MAX_TRACKS),
 });
 
-// An empty optional field is stored as null rather than "".
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .transform((value) => value || null);
-
 // Reflections ride along with the owner's arc and nowhere else, so nobody
 // else's view can ever include them. The season says whether an arc can be
 // started today, for someone who doesn't have one.
@@ -153,12 +145,13 @@ arcRouter.patch("/tracks/:id", async (req, res) => {
 
 const checkInSchema = z.object({
   // Where the browser put the photo in the "proofs" bucket.
-  photo: z.string("Upload a photo of your work to check in").max(200),
-  note: optionalText(200),
+  photo: z.string("Upload a photo of your work to commit").max(200),
+  // The commit message: what was done. Friends see this, so it's required.
+  note: z.string("Write a commit message: what did you do?").trim().min(1, "Write a commit message: what did you do?").max(200),
 });
 
-// The day's entry for a track: a photo of the work, filed against whichever
-// checkpoint the track is up to. Only ever for today, only on a day the track
+// The day's commit for a track: a message saying what was done and a photo
+// of the work, filed against whichever checkpoint the track is up to. Only ever for today, only on a day the track
 // runs, and there's no taking it back, though the photo can be replaced.
 arcRouter.put("/tracks/:id/checkin", async (req, res) => {
   const today = parseToday(req.body?.today);

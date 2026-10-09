@@ -33,7 +33,7 @@ type GoalInput = {
   title: string;
   emoji: string | null;
   startsOn: string;
-  checkIns: { date: string; note?: string | null; photo?: string | null }[];
+  checkIns: { date: string; note?: string | null; photo?: string | null; checkpointId?: string | null }[];
   subtasks: { id: string; title: string; doneOn: string | null }[];
 };
 
@@ -121,6 +121,7 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
   const dates: string[] = [];
   for (let d = arc.startDate; d <= last; d = addDays(d, 1)) dates.push(d);
   const todayInArc = today >= arc.startDate && today <= arc.endDate;
+  const inArc = new Set(dates);
 
   const tracks = arc.tracks.map((t) => ({
     ...t,
@@ -175,7 +176,7 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
       xpPerLevel: XP_PER_LEVEL,
     },
     badges,
-    days: days.map(({ date, status, done }) => ({ date, status, done })),
+    days: days.map(({ date, status, done, total }) => ({ date, status, done, total })),
     tracks: tracks
       .filter((t) => t.isPublic || !opts.publicOnly)
       .map((t) => {
@@ -201,8 +202,19 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
           // Today's proof: the photo's path in storage and the line with it.
           // Photos are private, so this is only ever in the owner's own view.
           proof: checkIn?.photo && !opts.publicOnly ? { photo: checkIn.photo, note: checkIn.note ?? null } : null,
+          // Every commit on this track, newest first: the day, the message
+          // and the checkpoint it went towards. Never the photo.
+          commits: t.goals
+            .flatMap((g) => g.checkIns)
+            .filter((c) => inArc.has(c.date))
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .map((c) => ({
+              date: c.date,
+              note: c.note ?? null,
+              checkpoint: t.checkpoints.find((k) => k.id === c.checkpointId)?.title ?? null,
+            })),
           // How many days a check-in was made.
-          total: new Set(t.goals.flatMap((g) => g.checkIns.map((c) => c.date)).filter((d) => dates.includes(d))).size,
+          total: new Set(t.goals.flatMap((g) => g.checkIns.map((c) => c.date)).filter((d) => inArc.has(d))).size,
           streak: summarize(t.goals, dates, todayInArc).streak,
         };
       }),

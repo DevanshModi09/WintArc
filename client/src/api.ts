@@ -23,6 +23,9 @@ export type Schedule = { days: number[]; minutes: number; startTime: string | nu
 // the track is.
 export type Checkpoint = { id: string; title: string; done: boolean }
 
+// One day's commit on a track: the message, and the checkpoint it went towards.
+export type Commit = { date: string; note: string | null; checkpoint: string | null }
+
 export type Track = Schedule & {
   checkpoints: Checkpoint[]
   id: string
@@ -37,6 +40,8 @@ export type Track = Schedule & {
   complete: boolean
   doneToday: boolean
   proof: Proof | null
+  // Every commit on this track, newest first.
+  commits: Commit[]
   // How many days a check-in was made.
   total: number
   streak: Streak
@@ -64,8 +69,8 @@ export type Arc = {
   xp: number
   level: Level
   badges: Badge[]
-  // `done` is how many goals were checked in that day.
-  days: { date: string; status: DayStatus; done: number }[]
+  // `done` of `total` tracks due that day were committed to.
+  days: { date: string; status: DayStatus; done: number; total: number }[]
   tracks: Track[]
   // Your one line a day. Only present on your own arc.
   reflections?: Reflection[]

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { LOGO_BOX, LOGO_PATH } from '../logo'
-import { today, type Arc, type DayStatus, type PublicUser } from '../api'
+import { today, type Arc, type PublicUser } from '../api'
 
 export function Logo() {
   return (
@@ -59,33 +59,93 @@ export function StatLine({ stats }: { stats: { label: string; value: ReactNode }
   )
 }
 
-const DAY_COLORS: Record<DayStatus, string> = {
-  perfect: 'bg-fg',
-  partial: 'bg-cell-partial',
-  missed: 'bg-cell-missed',
-  empty: 'bg-cell',
+const COLS = 15
+
+const graphDay = (date: string) => {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
+// The colour of one day: the more of it was done, the stronger the accent.
+function dayColor(day: Arc['days'][number] | undefined, isToday: boolean) {
+  if (!day) return 'bg-cell/50'
+  if (day.status === 'perfect') return 'bg-accent'
+  if (day.status === 'partial') return day.done / day.total >= 0.5 ? 'bg-accent/65' : 'bg-accent/35'
+  // Today isn't a miss until it's over.
+  if (day.status === 'missed') return isToday ? 'bg-cell ring-1 ring-fg ring-inset' : 'bg-cell-missed'
+  return 'bg-cell'
+}
+
+function dayLine(day: Arc['days'][number], isToday: boolean) {
+  if (day.status === 'empty') return 'Rest day'
+  if (day.status === 'perfect') return day.total === 1 ? 'Committed' : `All ${day.total} committed`
+  if (day.done === 0) return isToday ? `0 of ${day.total} so far` : 'Missed'
+  return `${day.done} of ${day.total} committed`
+}
+
+// The arc as a grid, a square a day, shaded by how much of the day was done.
+// Hover a square, or tab to it, for the date, the count and what was
+// committed that day.
 export function ActivityGrid({ arc }: { arc: Arc }) {
+  // Every commit by day, from the tracks this viewer is allowed to see.
+  const byDay = new Map<string, { track: string; note: string | null }[]>()
+  for (const track of arc.tracks) {
+    for (const commit of track.commits) {
+      byDay.set(commit.date, [...(byDay.get(commit.date) ?? []), { track: track.name, note: commit.note }])
+    }
+  }
+
   return (
     <section className="space-y-3">
-      <h2 className="h2">Arc activity</h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="h2">Arc activity</h2>
+        <span className="label">
+          {arc.totalCheckIns} {arc.totalCheckIns === 1 ? 'commit' : 'commits'}
+        </span>
+      </div>
       <div className="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-[3px]">
         {Array.from({ length: arc.totalDays }, (_, i) => {
           const day = arc.days[i]
-          // Today isn't a miss until it's over.
-          const pending = day?.date === today() && day.status === 'missed'
-          let color = 'bg-cell'
-          if (pending) color = 'bg-bg ring-1 ring-fg ring-inset'
-          else if (day) color = DAY_COLORS[day.status]
+          const isToday = day?.date === today()
+          const commits = day ? (byDay.get(day.date) ?? []) : []
+          // Keep the card on the page at either edge of the grid.
+          const col = i % COLS
+          const side = col < 4 ? 'left-0' : col > COLS - 5 ? 'right-0' : 'left-1/2 -translate-x-1/2'
           return (
-            <div
-              key={i}
-              title={day ? `${day.date}: ${day.status}` : `Day ${i + 1}`}
-              className={`aspect-square rounded-cell ${color}`}
-            />
+            <div key={i} className="group relative" tabIndex={day ? 0 : undefined}>
+              <div className={`aspect-square rounded-cell transition group-hover:scale-125 group-focus:scale-125 ${dayColor(day, isToday)}`} />
+              <div
+                role="tooltip"
+                className={`card pointer-events-none absolute bottom-full z-20 mb-2 hidden w-max max-w-[240px] px-3 py-2 text-[12px] leading-snug shadow-2xl group-hover:block group-focus:block ${side}`}
+              >
+                <div className="font-medium">
+                  Day {i + 1}
+                  {day && ` · ${isToday ? 'Today' : graphDay(day.date)}`}
+                </div>
+                <div className="text-muted">{day ? dayLine(day, isToday) : 'Still to come'}</div>
+                {commits.length > 0 && (
+                  <ul className="mt-1.5 space-y-1 border-t border-line pt-1.5">
+                    {commits.slice(0, 4).map((c) => (
+                      <li key={c.track} className="break-words">
+                        <span className="text-muted">{c.track}:</span> {c.note ?? 'no message'}
+                      </li>
+                    ))}
+                    {commits.length > 4 && <li className="text-muted">and {commits.length - 4} more</li>}
+                  </ul>
+                )}
+              </div>
+            </div>
           )
         })}
+      </div>
+      <div className="flex items-center gap-1.5 text-[11px] text-muted" aria-hidden="true">
+        Less
+        {['bg-cell', 'bg-accent/35', 'bg-accent/65', 'bg-accent'].map((c) => (
+          <span key={c} className={`size-2.5 rounded-cell ${c}`} />
+        ))}
+        More
+        <span className="ml-3 size-2.5 rounded-cell bg-cell-missed" />
+        Missed
       </div>
     </section>
   )

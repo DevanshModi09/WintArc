@@ -5,6 +5,7 @@ import { arcPhase, arcStats, trackProgress } from '../arcStats'
 import { toAvatarDataUrl } from '../avatar'
 import { ActivityGrid, Avatar, ErrorNote, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadFile } from '../download'
+import { CommitLog } from '../components/CommitLog'
 import { scheduleSummary, weeklyPlan } from '../schedule'
 import { supabase } from '../supabase'
 import { useTitle } from '../useTitle'
@@ -188,6 +189,7 @@ function ProfileView({ username }: { username: string }) {
                       {track.total} {track.total === 1 ? 'day' : 'days'} done
                     </span>
                   </div>
+                  <CommitLog commits={track.commits} />
                 </section>
               ))}
             </div>
