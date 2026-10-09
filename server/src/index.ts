@@ -10,6 +10,7 @@ import { startProofCleanup } from "./cleanup";
 import { prisma } from "./db";
 import { env, isProduction } from "./env";
 import { errorHandler } from "./errors";
+import { adminRouter } from "./routes/admin";
 import { arcRouter } from "./routes/arc";
 import { authRouter } from "./routes/auth";
 import { avatarRouter } from "./routes/avatars";
@@ -86,6 +87,7 @@ app.use("/api", limiter(240), (_req, res, next) => {
 app.use("/api", express.json({ limit: "400kb" }));
 app.use("/api/auth", authRouter);
 app.use("/api/public", publicRouter);
+app.use("/api/admin", requireAuth, requireProfile, adminRouter);
 app.use("/api", requireAuth, requireProfile, arcRouter, socialRouter);
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });

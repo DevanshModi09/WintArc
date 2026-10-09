@@ -244,38 +244,3 @@ socialRouter.delete("/friends/:id", async (req, res) => {
   if (count === 0) throw new HttpError(404, "Friendship not found");
   res.json({ ok: true });
 });
-
-// For admins only: everyone's recent proof photos, newest first, to check that
-// what's being uploaded is what it should be. It returns where each photo is
-// in storage; opening one still needs the admin's own sign-in.
-socialRouter.get("/admin/proofs", async (_req, res) => {
-  const admin = await prisma.user.findUnique({ where: { id: res.locals.userId }, select: { isAdmin: true } });
-  // The same answer as for a page that doesn't exist.
-  if (!admin?.isAdmin) throw new HttpError(404, "Not found");
-  const checkIns = await prisma.checkIn.findMany({
-    where: { photo: { not: null } },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    select: {
-      id: true,
-      date: true,
-      note: true,
-      photo: true,
-      createdAt: true,
-      checkpoint: { select: { title: true } },
-      goal: { select: { track: { select: { name: true, isPublic: true, arc: { select: { user: { select: publicUserSelect } } } } } } },
-    },
-  });
-  res.json({
-    proofs: checkIns.map((c) => ({
-      id: c.id,
-      date: c.date,
-      uploadedAt: c.createdAt,
-      note: c.note,
-      photo: c.photo,
-      track: c.goal.track.name,
-      checkpoint: c.checkpoint?.title ?? null,
-      user: toPublicUser(c.goal.track.arc.user),
-    })),
-  });
-});

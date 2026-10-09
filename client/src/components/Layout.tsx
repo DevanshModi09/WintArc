@@ -57,7 +57,7 @@ export function Layout({ user }: { user: User }) {
               </NavLink>
               {user.isAdmin && (
                 <NavLink to="/admin" className={navClass}>
-                  Uploads
+                  Admin
                 </NavLink>
               )}
             </div>

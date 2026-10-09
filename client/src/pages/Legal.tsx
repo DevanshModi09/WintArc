@@ -29,6 +29,7 @@ const PRIVACY: Section[] = [
       'Tracks you mark public, their checkpoints and your streak, level and activity grid can be seen by other signed-in people, and you appear on the board.',
       'Your friends see your check-ins on public tracks in their feed: which checkpoint you worked on and the note you wrote. They never see the photo.',
       'Proof photos are private. Only you can see your own, and the person who runs WintArc can look at uploaded photos to check that nothing inappropriate is being posted. Nobody else can open them.',
+      'The person who runs WintArc can see everything in your account, including private tracks, check-ins and your email address, in order to run and moderate the app. The one exception is your reflections.',
       'Tracks you mark private are only ever shown to you.',
       'Your reflections are only ever shown to you.',
       'If you turn on your public page, anyone with its link can see your arc and public tracks without an account. It is off unless you turn it on.',

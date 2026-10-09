@@ -128,6 +128,41 @@ export type AdminProof = {
   user: PublicUser
 }
 
+// A check-in as an admin sees it, with the photo's place in storage.
+export type AdminCheckIn = Omit<AdminProof, 'user' | 'photo'> & { photo: string | null; trackIsPublic: boolean }
+
+export type AdminUserRow = {
+  user: PublicUser & { email: string; isAdmin: boolean; joined: string }
+  arc: {
+    startDate: string
+    dayNumber: number
+    totalDays: number
+    isOver: boolean
+    streak: number
+    bestStreak: number
+    xp: number
+    level: number
+    alive: boolean
+    today: { done: number; total: number }
+    tracks: number
+  } | null
+  checkIns: number
+  lastCheckIn: string | null
+}
+
+export type AdminOverview = {
+  totals: { users: number; withArc: number; standing: number; checkedInToday: number; checkInsToday: number; photos: number }
+  users: AdminUserRow[]
+}
+
+export type AdminUser = {
+  user: ProfileUser & { email: string; isAdmin: boolean; sharePublic: boolean }
+  arc: Arc | null
+  arcCount: number
+  checkIns: AdminCheckIn[]
+  friends: { user: PublicUser; accepted: boolean }[]
+}
+
 export type Commitment = { user: PublicUser & { bio: string | null }; arc: Arc | null }
 
 // A track as it's set up with a new arc: its plan and its checkpoints.
@@ -199,6 +234,9 @@ export const api = {
   getCommitment: (username: string) =>
     request<Commitment>('GET', `/public/${encodeURIComponent(username)}?today=${today()}`),
   getAdminProofs: () => request<{ proofs: AdminProof[] }>('GET', '/admin/proofs'),
+  getAdminOverview: () => request<AdminOverview>('GET', `/admin/overview?today=${today()}`),
+  getAdminUser: (username: string) =>
+    request<AdminUser>('GET', `/admin/users/${encodeURIComponent(username)}?today=${today()}`),
   getFriends: () => request<Friends>('GET', `/friends?today=${today()}`),
   addFriend: (username: string) => request<RelationInfo>('POST', '/friends', { username }),
   acceptFriend: (friendshipId: string) =>
