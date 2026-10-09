@@ -4,6 +4,7 @@ import { api, today, type Arc, type ArcResponse, type Season, type Track, type U
 import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
 import { ActivityGrid, ErrorNote, LevelBar, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
+import { DeviceSettings } from '../components/DeviceSettings'
 import { Rise } from '../components/Motion'
 import { ProofPhoto } from '../components/ProofPhoto'
 import { uploadProof } from '../proof'
@@ -95,7 +96,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
             )}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
-            <h1 className="text-[40px] leading-none font-medium">
+            <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">
               {arc.isOver
                 ? `Finished with ${arc.perfectDays} perfect days`
                 : due.length === 0
@@ -186,6 +187,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               </Link>
             </div>
           </section>
+          <DeviceSettings />
           <SharePage user={user} onUser={onUser} />
         </aside>
       </div>
@@ -199,7 +201,7 @@ function Closed({ season }: { season: Season }) {
   return (
     <div className="mx-auto max-w-[560px] space-y-4 py-16 text-center">
       <div className="eyebrow justify-center">Winter Arc</div>
-      <h1 className="text-[40px] leading-none font-medium">{missed ? 'Come back next year' : 'Not open yet'}</h1>
+      <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">{missed ? 'Come back next year' : 'Not open yet'}</h1>
       <p className="text-muted">
         {missed
           ? `The last day to start this year's arc was ${longDate(season.lastStart)}. Everyone who's in runs until ${longDate(season.endDate)}, and the next arc opens on 1 October.`

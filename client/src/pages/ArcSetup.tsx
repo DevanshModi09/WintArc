@@ -63,7 +63,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
       </AnimatePresence>
       <form onSubmit={submit} className="space-y-8">
         <header className="max-w-[640px]">
-          <h1 className="text-[40px] leading-none font-medium">Set up your arc</h1>
+          <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">Set up your arc</h1>
           <p className="mt-2 text-muted">
             Split it into tracks like Web Dev, DSA or Badminton. Pick the days each one runs on and the checkpoints you
             want to reach in it. Every track needs at least one. Each day a track runs, your task is the checkpoint you're on: you check in with a

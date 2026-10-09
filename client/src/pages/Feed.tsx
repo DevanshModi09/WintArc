@@ -1,9 +1,46 @@
 import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, today, type FeedEntry } from '../api'
+import { api, today, type FeedEntry, type Reaction } from '../api'
 import { Avatar, ErrorNote, Loading } from '../components/ArcParts'
 import { useTitle } from '../useTitle'
+
+// The row of responses under a commit. A tap shows straight away, and is put
+// back if the server says no.
+function Reactions({ commitId, initial }: { commitId: string; initial: Reaction[] }) {
+  const [reactions, setReactions] = useState(initial)
+
+  function toggle(emoji: string) {
+    const before = reactions
+    const mine = !before.find((r) => r.emoji === emoji)?.mine
+    setReactions(before.map((r) => (r.emoji === emoji ? { ...r, mine, count: r.count + (mine ? 1 : -1) } : r)))
+    api.react(commitId, emoji, mine).then(
+      (res) => setReactions(res.reactions),
+      () => setReactions(before),
+    )
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="React to this commit">
+      {reactions.map((r) => (
+        <motion.button
+          key={r.emoji}
+          type="button"
+          whileTap={{ scale: 0.85 }}
+          className={`flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[14px] transition ${
+            r.mine ? 'border-accent bg-accent/15' : 'border-line hover:border-fg'
+          }`}
+          aria-pressed={r.mine}
+          aria-label={`${r.emoji} ${r.count}`}
+          onClick={() => toggle(r.emoji)}
+        >
+          <span aria-hidden="true">{r.emoji}</span>
+          {r.count > 0 && <span className="text-[13px] tabular-nums">{r.count}</span>}
+        </motion.button>
+      ))}
+    </div>
+  )
+}
 
 const feedDay = (date: string) => {
   if (date === today()) return 'today'
@@ -32,7 +69,7 @@ export function Feed() {
     <div className="mx-auto max-w-[640px] space-y-6">
       <header>
         <div className="eyebrow">The last 7 days</div>
-        <h1 className="mt-3 text-[40px] leading-none font-medium">Feed</h1>
+        <h1 className="mt-3 text-[32px] leading-none font-medium sm:text-[40px]">Feed</h1>
         <p className="mt-2 text-muted">What you and your friends have committed. Only public tracks show up here.</p>
       </header>
 
@@ -74,6 +111,7 @@ export function Feed() {
                   {item.note ? `“${item.note}”` : <span className="text-muted">No message</span>}
                 </blockquote>
                 {item.checkpoint && <p className="label mt-2 truncate">Working on {item.checkpoint}</p>}
+                <Reactions commitId={item.id} initial={item.reactions} />
               </div>
             </motion.li>
           )),

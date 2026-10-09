@@ -29,7 +29,7 @@ function Shell({ title, intro, children }: { title: string; intro: ReactNode; ch
     <div className="space-y-8">
       <header>
         <div className="eyebrow">Admin</div>
-        <h1 className="mt-3 text-[40px] leading-none font-medium">{title}</h1>
+        <h1 className="mt-3 text-[32px] leading-none font-medium sm:text-[40px]">{title}</h1>
         <p className="mt-2 max-w-[64ch] text-muted">{intro}</p>
         <nav className="mt-5 flex gap-1.5" aria-label="Admin sections">
           <NavLink to="/admin" end className={tabClass}>

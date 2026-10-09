@@ -25,7 +25,7 @@ export function Onboarding({ suggestedName, onDone }: { suggestedName: string; o
   return (
     <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
       <Logo />
-      <h1 className="mt-8 text-[40px] leading-none font-medium">Set up your profile</h1>
+      <h1 className="mt-8 text-[32px] leading-none font-medium sm:text-[40px]">Set up your profile</h1>
       <p className="mt-2 text-muted">Friends will find you by your username.</p>
 
       <form onSubmit={submit} className="mt-8 space-y-3">

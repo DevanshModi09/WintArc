@@ -13,6 +13,12 @@ const schema = z.object({
   // How many reverse proxies sit in front of the server. Rate limiting needs
   // this to see the visitor's address rather than the proxy's.
   TRUST_PROXY: z.coerce.number().int().min(0).optional(),
+  // Optional. The key pair that signs reminder notifications, and a contact
+  // address the push services can reach the operator on. Without the keys,
+  // reminders are off.
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().default("mailto:devanshmodi250@gmail.com"),
 });
 
 const parsed = schema.safeParse(process.env);

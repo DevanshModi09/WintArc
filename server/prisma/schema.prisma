@@ -29,6 +29,8 @@ model User {
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
   arcs         Arc[]
+  reactions        Reaction[]
+  pushSubscriptions PushSubscription[]
   sentRequests     Friendship[] @relation("requester")
   receivedRequests Friendship[] @relation("addressee")
 }
@@ -152,9 +154,39 @@ model CheckIn {
   note      String?
   link      String?
   createdAt DateTime @default(now())
+  reactions Reaction[]
 
   @@unique([goalId, date])
   @@index([createdAt])
+}
+
+// A friend's one-tap response to a commit. One of each emoji per person.
+model Reaction {
+  id        String   @id @default(cuid())
+  checkInId String
+  checkIn   CheckIn  @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([checkInId, userId, emoji])
+}
+
+// One browser or installed app that has agreed to receive reminders. The
+// endpoint and keys are what the browser handed over; the timezone is how the
+// server knows what time it is for this person.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  timezone  String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // One row per pair of users. It is a pending request until accepted.

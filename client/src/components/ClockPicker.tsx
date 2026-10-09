@@ -77,7 +77,7 @@ export function ClockPicker({ value, onChange }: Props) {
       </button>
 
       {open && (
-        <div role="dialog" aria-label="Pick a start time" className="card absolute top-10 left-0 z-20 w-[264px] space-y-4 p-4 shadow-2xl">
+        <div role="dialog" aria-label="Pick a start time" className="card absolute top-10 left-0 z-20 w-[264px] space-y-4 p-4 shadow-2xl max-sm:fixed max-sm:top-1/2 max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:-translate-y-1/2">
           <div className="flex items-center justify-center gap-1">
             <button type="button" className={segment(mode === 'hour')} aria-label="Hour" aria-pressed={mode === 'hour'} onClick={() => setMode('hour')}>
               {value ? hour12 : '–'}

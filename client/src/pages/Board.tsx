@@ -37,7 +37,7 @@ export function Board() {
             ? `Ended ${longDate(season.endDate)}`
             : `${season.daysLeft} ${season.daysLeft === 1 ? 'day' : 'days'} left · ends ${longDate(season.endDate)}`}
         </div>
-        <h1 className="mt-3 text-[40px] leading-none font-medium">
+        <h1 className="mt-3 text-[32px] leading-none font-medium sm:text-[40px]">
           {standing.toLocaleString()} of {started.toLocaleString()} still standing
         </h1>
         <p className="mt-2 text-muted">{mine}</p>

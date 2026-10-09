@@ -78,7 +78,7 @@ function ProfileView({ username }: { username: string }) {
         )}
         <div className="min-w-48 flex-1">
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <h1 className="text-[40px] leading-none font-medium">{user.name}</h1>
+            <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">{user.name}</h1>
             {arc && <StatLine stats={[...arcStats(arc), { label: 'A week', value: weeklyPlan(arc.tracks) }]} />}
           </div>
           <div className="mt-1 font-mono text-muted">
@@ -107,31 +107,34 @@ function ProfileView({ username }: { username: string }) {
             </div>
           )}
         </div>
-        {isSelf && !editing && (
-          <button className="btn-outline" onClick={() => setEditing(true)}>
-            Edit profile
-          </button>
-        )}
-        {relation === 'none' && (
-          <button className="btn" onClick={() => act(() => api.addFriend(user.username))}>
-            Add friend
-          </button>
-        )}
-        {relation === 'incoming' && (
-          <button className="btn" onClick={() => act(() => api.acceptFriend(friendshipId!))}>
-            Accept request
-          </button>
-        )}
-        {relation === 'outgoing' && (
-          <button className="btn-outline" onClick={() => act(() => api.removeFriend(friendshipId!))}>
-            Cancel request
-          </button>
-        )}
-        {relation === 'friends' && (
-          <button className="btn-outline" onClick={() => act(() => api.removeFriend(friendshipId!))}>
-            Remove friend
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {isSelf && !editing && (
+            <button className="btn-outline" onClick={() => setEditing(true)}>
+              Edit profile
+            </button>
+          )}
+          {relation === 'none' && (
+            <button className="btn" onClick={() => act(() => api.addFriend(user.username))}>
+              Add friend
+            </button>
+          )}
+          {relation === 'incoming' && (
+            <button className="btn" onClick={() => act(() => api.acceptFriend(friendshipId!))}>
+              Accept request
+            </button>
+          )}
+          {relation === 'outgoing' && (
+            <button className="btn-outline" onClick={() => act(() => api.removeFriend(friendshipId!))}>
+              Cancel request
+            </button>
+          )}
+          {relation === 'friends' && (
+            <button className="btn-outline" onClick={() => act(() => api.removeFriend(friendshipId!))}>
+              Remove friend
+            </button>
+          )}
+          <ShareProfile name={user.name} username={user.username} />
+        </div>
       </header>
 
       <ErrorNote message={error} />
@@ -210,6 +213,32 @@ function ProfileView({ username }: { username: string }) {
 
 const shortDate = (date: string) =>
   new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+
+// Hands the profile's link to the phone's share sheet, or copies it where
+// there isn't one.
+function ShareProfile({ name, username }: { name: string; username: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function share() {
+    const url = `${window.location.origin}/u/${username}`
+    try {
+      if (navigator.share) await navigator.share({ title: `${name} on WintArc`, url })
+      else {
+        await navigator.clipboard.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
+    } catch {
+      // Closing the share sheet isn't a failure.
+    }
+  }
+
+  return (
+    <button className="btn-outline" onClick={share}>
+      {copied ? 'Link copied' : 'Share profile'}
+    </button>
+  )
+}
 
 function PastArcs({ arcs }: { arcs: PastArc[] }) {
   if (arcs.length === 0) return null

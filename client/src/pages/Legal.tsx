@@ -103,7 +103,7 @@ export function Legal({ doc }: { doc: keyof typeof DOCS }) {
       </Link>
       <header>
         <div className="eyebrow">Last updated {UPDATED}</div>
-        <h1 className="mt-3 text-[40px] leading-none font-medium">{title}</h1>
+        <h1 className="mt-3 text-[32px] leading-none font-medium sm:text-[40px]">{title}</h1>
         <p className="mt-3 text-muted">{intro}</p>
       </header>
       {sections.map((section) => (

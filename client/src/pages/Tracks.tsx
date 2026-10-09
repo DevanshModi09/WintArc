@@ -64,7 +64,7 @@ export function Tracks() {
   if (arc === null) {
     return (
       <div className="space-y-4">
-        <h1 className="text-[40px] leading-none font-medium">Tracks</h1>
+        <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">Tracks</h1>
         <p className="text-muted">
           You don't have an arc yet.{' '}
           <Link to="/" className="font-medium text-fg hover:underline">
@@ -85,10 +85,10 @@ export function Tracks() {
       <header>
         <div className="eyebrow">{arc.name}</div>
         <div className="mt-3 flex items-end justify-between gap-6">
-          <h1 className="text-[40px] leading-none font-medium">Tracks</h1>
+          <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">Tracks</h1>
           {/* Every checkpoint across every track, as one number. */}
           <div className="text-right" title={`${done} of ${all.length} checkpoints finished across all tracks`}>
-            <div className="text-[40px] leading-none font-medium">{overall ?? 0}%</div>
+            <div className="text-[32px] leading-none font-medium sm:text-[40px]">{overall ?? 0}%</div>
             <div className="label mt-1">
               overall · {done} of {all.length} checkpoints
             </div>

@@ -115,10 +115,13 @@ export type Survivors = {
   survivors: { user: PublicUser; streak: number; xp: number; level: number }[]
 }
 
+// One of the responses a commit can get: how many people left it, and whether you did.
+export type Reaction = { emoji: string; count: number; mine: boolean }
+
 export type FeedEntry = {
   user: PublicUser
   date: string
-  items: { id: string; track: string; checkpoint: string | null; note: string | null }[]
+  items: { id: string; track: string; checkpoint: string | null; note: string | null; reactions: Reaction[] }[]
 }
 
 // One uploaded proof photo, as an admin sees it.
@@ -238,6 +241,15 @@ export const api = {
   getFeed: () => request<{ entries: FeedEntry[] }>('GET', `/feed?today=${today()}`),
   getCommitment: (username: string) =>
     request<Commitment>('GET', `/public/${encodeURIComponent(username)}?today=${today()}`),
+  react: (commitId: string, emoji: string, on: boolean) =>
+    request<{ reactions: Reaction[] }>('PUT', `/commits/${commitId}/reactions`, { emoji, on }),
+
+  getPushKey: () => request<{ key: string | null }>('GET', '/push/key'),
+  pushSubscribe: (subscription: { endpoint: string; keys: { p256dh: string; auth: string }; timezone: string }) =>
+    request<{ ok: true }>('POST', '/push/subscriptions', subscription),
+  pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('DELETE', '/push/subscriptions', { endpoint }),
+  pushTest: () => request<{ ok: true }>('POST', '/push/test'),
+
   getAdminProofs: () => request<{ proofs: AdminProof[] }>('GET', '/admin/proofs'),
   getAdminOverview: () => request<AdminOverview>('GET', `/admin/overview?today=${today()}`),
   getAdminUser: (username: string) =>

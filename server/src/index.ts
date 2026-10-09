@@ -10,6 +10,7 @@ import { startProofCleanup } from "./cleanup";
 import { prisma } from "./db";
 import { env, isProduction } from "./env";
 import { errorHandler } from "./errors";
+import { pushRouter, startReminders } from "./push";
 import { adminRouter } from "./routes/admin";
 import { arcRouter } from "./routes/arc";
 import { authRouter } from "./routes/auth";
@@ -88,7 +89,7 @@ app.use("/api", express.json({ limit: "400kb" }));
 app.use("/api/auth", authRouter);
 app.use("/api/public", publicRouter);
 app.use("/api/admin", requireAuth, requireProfile, adminRouter);
-app.use("/api", requireAuth, requireProfile, arcRouter, socialRouter);
+app.use("/api", requireAuth, requireProfile, arcRouter, socialRouter, pushRouter);
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
@@ -112,6 +113,7 @@ app.use(errorHandler);
 const server = app.listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${env.PORT}`);
   startProofCleanup();
+  startReminders();
 });
 
 // Let requests in flight finish before the process goes away on a deploy.

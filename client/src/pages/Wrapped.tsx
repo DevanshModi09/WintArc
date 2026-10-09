@@ -75,7 +75,7 @@ export function Wrapped({ user }: { user: User }) {
   if (arc === null || arc.startsIn > 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-[40px] leading-none font-medium">Wrapped</h1>
+        <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">Wrapped</h1>
         <p className="text-muted">
           {arc ? 'Your arc hasn’t started yet. Your wrap fills in from day 1.' : "You don't have an arc yet."}{' '}
           <Link to="/" className="font-medium text-fg hover:underline">
@@ -130,7 +130,7 @@ export function Wrapped({ user }: { user: User }) {
   return (
     <div className="mx-auto max-w-[520px] space-y-6">
       <header className="space-y-3">
-        <h1 className="text-[40px] leading-none font-medium">{arc.isOver ? 'Your arc, wrapped' : 'Your arc so far'}</h1>
+        <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">{arc.isOver ? 'Your arc, wrapped' : 'Your arc so far'}</h1>
         {!arc.isOver && (
           <p className="text-muted">
             Day {arc.dayNumber} of {arc.totalDays}. A card unlocks after day 30 and day 60, and the final wrap lands when
@@ -168,7 +168,7 @@ export function Wrapped({ user }: { user: User }) {
           <span className="font-mono text-[13px] text-muted">@{user.username}</span>
         </div>
         <div>
-          <h2 className="text-[48px] leading-none font-medium">{card.title}</h2>
+          <h2 className="text-[36px] leading-none font-medium sm:text-[48px]">{card.title}</h2>
           <p className="mt-2 font-mono text-[13px] text-muted">{card.subtitle}</p>
         </div>
         <div className="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-[3px]">

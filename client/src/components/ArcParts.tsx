@@ -51,9 +51,9 @@ export function Checkbox({ checked }: { checked: boolean }) {
 // A few headline numbers in one small block, to sit beside a page title.
 export function StatLine({ stats }: { stats: { label: string; value: ReactNode }[] }) {
   return (
-    <dl className="card inline-flex divide-x divide-line overflow-hidden">
+    <dl className="card inline-flex max-w-full divide-x divide-line overflow-x-auto">
       {stats.map((s) => (
-        <div key={s.label} className="flex flex-col-reverse gap-1 px-5 py-3">
+        <div key={s.label} className="flex flex-col-reverse gap-1 px-3.5 py-3 sm:px-5">
           <dd className="text-xl leading-none font-medium whitespace-nowrap">{s.value}</dd>
           <dt className="label leading-none">{s.label}</dt>
         </div>

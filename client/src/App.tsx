@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { api, type User } from './api'
 import { ErrorNote, Loading } from './components/ArcParts'
 import { Layout } from './components/Layout'
@@ -41,14 +41,46 @@ export default function App() {
           <Route path="/c/:username" element={<Commitment />} />
           <Route path="/privacy" element={<Legal doc="privacy" />} />
           <Route path="/terms" element={<Legal doc="terms" />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<RememberAndSignIn />} />
         </Routes>
       )}
     </BrowserRouter>
   )
 }
 
+const NEXT = 'afterSignIn'
+
+// Someone opened a link to a page that needs an account: remember where they
+// were headed, and send them to sign in.
+function RememberAndSignIn() {
+  const { pathname, search } = useLocation()
+  try {
+    sessionStorage.setItem(NEXT, pathname + search)
+  } catch {
+    // No storage: they just land on Today after signing in.
+  }
+  return <Navigate to="/login" replace />
+}
+
+// Where a just-signed-in person was trying to go, if anywhere. Read once.
+function takeNext() {
+  try {
+    const next = sessionStorage.getItem(NEXT)
+    sessionStorage.removeItem(NEXT)
+    // Only ever a path on this site.
+    return next?.startsWith('/') && !next.startsWith('//') ? next : null
+  } catch {
+    return null
+  }
+}
+
 function SignedIn() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const next = takeNext()
+    if (next) navigate(next, { replace: true })
+  }, [navigate])
+
   const [me, setMe] = useState<{ user: User | null; suggestedName: string }>()
   const [error, setError] = useState('')
 

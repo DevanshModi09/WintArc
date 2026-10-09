@@ -166,6 +166,38 @@ socialRouter.get("/survivors", async (req, res) => {
   });
 });
 
+// The responses a commit can get. Fixed, so nobody can post anything else.
+const REACTIONS = ["🔥", "💪", "👏", "❤️"] as const;
+
+// Each emoji with how many people left it, and whether the viewer did.
+function tally(reactions: { emoji: string; userId: string }[], me: string) {
+  return REACTIONS.map((emoji) => {
+    const from = reactions.filter((r) => r.emoji === emoji);
+    return { emoji, count: from.length, mine: from.some((r) => r.userId === me) };
+  });
+}
+
+// Adds or takes back the viewer's reaction to a commit. Only on commits they
+// can see in their feed: their own, and friends' on public tracks.
+socialRouter.put("/commits/:id/reactions", async (req, res) => {
+  const me: string = res.locals.userId;
+  const { emoji, on } = z.object({ emoji: z.enum(REACTIONS), on: z.boolean() }).parse(req.body);
+  const commit = await prisma.checkIn.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, goal: { select: { track: { select: { isPublic: true, arc: { select: { userId: true } } } } } } },
+  });
+  const owner = commit?.goal.track.arc.userId;
+  const visible =
+    commit && (owner === me || (commit.goal.track.isPublic && (await friendshipBetween(me, owner!))?.accepted));
+  if (!commit || !visible) throw new HttpError(404, "Commit not found");
+
+  const key = { checkInId: commit.id, userId: me, emoji };
+  if (on) await prisma.reaction.upsert({ where: { checkInId_userId_emoji: key }, create: key, update: {} });
+  else await prisma.reaction.deleteMany({ where: key });
+  const reactions = await prisma.reaction.findMany({ where: { checkInId: commit.id }, select: { emoji: true, userId: true } });
+  res.json({ reactions: tally(reactions, me) });
+});
+
 // The last week of work from you and your friends, a card per person per day.
 // Friends' private tracks never appear, and nor does anyone's photo.
 socialRouter.get("/feed", async (req, res) => {
@@ -189,13 +221,14 @@ socialRouter.get("/feed", async (req, res) => {
       date: true,
       note: true,
       checkpoint: { select: { title: true } },
+      reactions: { select: { emoji: true, userId: true } },
       goal: { select: { track: { select: { name: true, arc: { select: { userId: true } } } } } },
     },
   });
 
   const users = await prisma.user.findMany({ where: { id: { in: [me, ...friendIds] } }, select: publicUserSelect });
   const byId = new Map(users.map((u) => [u.id, toPublicUser(u)]));
-  type Item = { id: string; track: string; checkpoint: string | null; note: string | null };
+  type Item = { id: string; track: string; checkpoint: string | null; note: string | null; reactions: ReturnType<typeof tally> };
   type Entry = { user: ReturnType<typeof toPublicUser>; date: string; items: Item[] };
   // Newest first, so each card sits where its latest check-in does.
   const entries = new Map<string, Entry>();
@@ -204,7 +237,13 @@ socialRouter.get("/feed", async (req, res) => {
     const key = `${userId} ${c.date}`;
     if (!entries.has(key)) entries.set(key, { user: byId.get(userId)!, date: c.date, items: [] });
     // The proof photo itself is private, so the feed never carries it.
-    entries.get(key)!.items.push({ id: c.id, track: c.goal.track.name, checkpoint: c.checkpoint?.title ?? null, note: c.note });
+    entries.get(key)!.items.push({
+      id: c.id,
+      track: c.goal.track.name,
+      checkpoint: c.checkpoint?.title ?? null,
+      note: c.note,
+      reactions: tally(c.reactions, me),
+    });
   }
   res.json({ entries: [...entries.values()].slice(0, 40) });
 });

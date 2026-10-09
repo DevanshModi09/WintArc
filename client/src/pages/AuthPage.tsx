@@ -77,7 +77,7 @@ function Pitch({ eyebrow, slides }: { eyebrow: string; slides: { headline: strin
             >
               <div className="eyebrow">{eyebrow}</div>
               <div className={current ? 'slide-in' : ''}>
-                <Headline className="mt-5 text-[38px] leading-[1.05] font-medium text-balance sm:text-[48px]">{slide.headline}</Headline>
+                <Headline className="mt-5 text-[32px] leading-[1.05] font-medium text-balance sm:text-[48px]">{slide.headline}</Headline>
                 <p className="mt-4 text-xl text-muted">{slide.sub}</p>
               </div>
             </div>
@@ -117,29 +117,15 @@ export function AuthPage() {
   const pitch = seasonPitch()
 
   return (
-    <main className="mx-auto grid min-h-screen max-w-[1040px] items-center gap-x-16 gap-y-12 px-6 py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <section>
+    <main className="mx-auto grid min-h-screen max-w-[1040px] content-center items-center gap-x-16 gap-y-10 px-6 py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="lg:self-end">
         <Logo />
         <div className="mt-10">
           <Pitch eyebrow={pitch.eyebrow} slides={pitch.slides} />
         </div>
-        <ul className="mt-8 space-y-3">
-          {[
-            ['Lock in your tracks', 'Pick what you’re working on and the checkpoints you’ll hit. Once it’s set, it’s set.'],
-            ['Prove it every day', 'A check-in needs a photo of the work. No photo, no day.'],
-            ['No backing off', 'There’s no ending it early. Everyone finishes on 1 January.'],
-          ].map(([title, text]) => (
-            <li key={title} className="flex gap-3">
-              <span className="mt-2 size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-              <span>
-                <span className="font-medium">{title}.</span> <span className="text-muted">{text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
       </section>
 
-      <section>
+      <section className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <h2 className="h2">Get in</h2>
         <p className="mt-2 text-muted">Sign in with your Google account. New here? The same button creates your account.</p>
 
@@ -165,6 +151,22 @@ export function AuthPage() {
           .
         </p>
       </section>
+
+      {/* Under the way in on a phone, beside it on a wide screen. */}
+      <ul className="space-y-3 lg:col-start-1 lg:row-start-2 lg:self-start">
+        {[
+          ['Lock in your tracks', 'Pick what you’re working on and the checkpoints you’ll hit. Once it’s set, it’s set.'],
+          ['Prove it every day', 'A check-in needs a photo of the work. No photo, no day.'],
+          ['No backing off', 'There’s no ending it early. Everyone finishes on 1 January.'],
+        ].map(([title, text]) => (
+          <li key={title} className="flex gap-3">
+            <span className="mt-2 size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+            <span>
+              <span className="font-medium">{title}.</span> <span className="text-muted">{text}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </main>
   )
 }
