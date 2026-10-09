@@ -193,8 +193,9 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
           minutes: t.minutes,
           startTime: t.startTime,
           reminder: t.reminder,
-          // False on its off days, and once every checkpoint is finished.
-          dueToday: t.days.includes(weekday(today)) && (!complete || doneToday),
+          // False on its off days, before the arc has started, and once every
+          // checkpoint is finished.
+          dueToday: today >= arc.startDate && t.days.includes(weekday(today)) && (!complete || doneToday),
           checkpoints: t.checkpoints.map((c) => ({ id: c.id, title: c.title, done: c.doneAt !== null })),
           active: next === -1 ? null : { id: t.checkpoints[next].id, title: t.checkpoints[next].title, number: next + 1 },
           complete,

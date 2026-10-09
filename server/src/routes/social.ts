@@ -139,6 +139,8 @@ async function boardRows(endDate: string, today: string): Promise<BoardRow[]> {
     const arc = arcs.get(user.id)!;
     // An arc with no goals isn't in the running.
     if (!arc.tracks.some((t) => t.goals.length > 0)) return [];
+    // Nor is one that hasn't started yet.
+    if (arc.startDate > today) return [];
     const { survivor, streak, xp, level } = buildArcView(arc, today);
     return [{ user: toPublicUser(user), ...survivor, streak: streak.current, xp, level: level.number }];
   });

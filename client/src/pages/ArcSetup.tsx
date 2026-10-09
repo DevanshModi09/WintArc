@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
+import { today } from '../today'
 import { api, type Arc, type NewTrack, type Season } from '../api'
 import { ErrorNote, Lock } from '../components/ArcParts'
 import { CheckpointList } from '../components/CheckpointList'
@@ -10,24 +11,36 @@ import { defaultSchedule, scheduleSummary, weeklyPlan } from '../schedule'
 
 const emptyTrack = (): NewTrack => ({ name: '', isPublic: true, checkpoints: [], ...defaultSchedule() })
 
-// Days from today up to and including `date`.
-const daysUntil = (date: string) => {
+const toDate = (date: string) => {
   const [y, m, d] = date.split('-').map(Number)
-  const now = new Date()
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  return Math.round((new Date(y, m - 1, d).getTime() - midnight) / 86_400_000) + 1
+  return new Date(y, m - 1, d)
 }
 
-const longDate = (date: string) => {
-  const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+const addDays = (date: string, days: number) => {
+  const d = toDate(date)
+  d.setDate(d.getDate() + days)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+// Days from `from` up to and including `to`.
+const daysBetween = (from: string, to: string) => Math.round((toDate(to).getTime() - toDate(from).getTime()) / 86_400_000) + 1
+
+const longDate = (date: string) => toDate(date).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+
+// A start day the way you'd say it: "today", "tomorrow", or "on 14 October".
+const startPhrase = (date: string, first: string) =>
+  date === first ? 'today' : date === addDays(first, 1) ? 'tomorrow' : `on ${longDate(date)}`
 
 export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (arc: Arc | null) => void }) {
   const [tracks, setTracks] = useState<NewTrack[]>([emptyTrack()])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [pledging, setPledging] = useState(false)
+  // The arc can begin today or any later day the season still allows.
+  const [first] = useState(today)
+  const [startDate, setStartDate] = useState(first)
+  const starts = startPhrase(startDate, first)
   // No wandering off to other pages halfway through.
   useFocusedLayout()
 
@@ -49,7 +62,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
     setPledging(false)
     setBusy(true)
     try {
-      onCreated((await api.createArc({ tracks })).arc)
+      onCreated((await api.createArc({ tracks, startDate })).arc)
     } catch (err) {
       setError((err as Error).message)
       setBusy(false)
@@ -59,7 +72,7 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   return (
     <>
       <AnimatePresence>
-        {pledging && <Pledge tracks={tracks} ends={longDate(season.endDate)} days={daysUntil(season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
+        {pledging && <Pledge tracks={tracks} starts={starts} ends={longDate(season.endDate)} days={daysBetween(startDate, season.endDate)} onConfirm={create} onCancel={() => setPledging(false)} />}
       </AnimatePresence>
       <form onSubmit={submit} className="space-y-8">
         <header className="max-w-[640px]">
@@ -76,9 +89,12 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="min-w-0 space-y-8">
             <section className="space-y-3">
+              <h2 className="h2">Start arc from</h2>
+              <StartPicker value={startDate} onChange={setStartDate} first={first} last={season.lastStart} />
               <p className="label">
-                Your arc starts today and ends on {longDate(season.endDate)}, like everyone's. The last day to start is{' '}
-                {longDate(season.lastStart)}.
+                Your arc starts {starts} and ends on {longDate(season.endDate)}, like everyone's:{' '}
+                {daysBetween(startDate, season.endDate)} days. The last day to start is {longDate(season.lastStart)}.
+                {startDate !== first && ' Until it starts there is nothing to check in, and once created the start day is final.'}
               </p>
             </section>
 
@@ -145,22 +161,116 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
   )
 }
 
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+type StartPickerProps = { value: string; onChange: (date: string) => void; first: string; last: string }
+
+// The day the arc begins: a button saying which, opening a calendar of every
+// day that can still be picked, from today to the season's last start.
+function StartPicker({ value, onChange, first, last }: StartPickerProps) {
+  const [open, setOpen] = useState(false)
+
+  const months: { name: string; blanks: number; dates: string[] }[] = []
+  for (let date = first; date <= last; date = addDays(date, 1)) {
+    const name = toDate(date).toLocaleDateString(undefined, { month: 'long' })
+    if (months.at(-1)?.name !== name) months.push({ name, blanks: toDate(date).getDay(), dates: [] })
+    months.at(-1)!.dates.push(date)
+  }
+
+  const label = startPhrase(value, first).replace(/^on /, '')
+
+  return (
+    <div className="card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        aria-expanded={open}
+        // On the last day to start there is nothing to choose between.
+        disabled={first >= last}
+        onClick={() => setOpen(!open)}
+      >
+        <span>
+          <span className="font-medium capitalize">{label}</span>
+          {value !== first && value !== addDays(first, 1) ? null : (
+            <span className="label ml-2">{longDate(value)}</span>
+          )}
+        </span>
+        {first < last && (
+          <span className="label flex items-center gap-2">
+            {open ? 'Close' : 'Change'}
+            <svg
+              className={`transition-transform ${open ? 'rotate-180' : ''}`}
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="space-y-4 border-t border-line px-4 py-4">
+          {months.map((month) => (
+            <div key={month.name}>
+              <div className="label">{month.name}</div>
+              <div className="mt-2 grid max-w-[308px] grid-cols-7 gap-1">
+                {WEEKDAYS.map((d, i) => (
+                  <span key={i} className="label text-center text-[12px]" aria-hidden="true">
+                    {d}
+                  </span>
+                ))}
+                {Array.from({ length: month.blanks }, (_, i) => (
+                  <span key={i} />
+                ))}
+                {month.dates.map((date) => (
+                  <button
+                    key={date}
+                    type="button"
+                    className={`flex h-10 items-center justify-center rounded-field border text-[14px] transition ${
+                      date === value ? 'border-fg bg-fg font-medium text-bg' : 'border-transparent hover:border-fg'
+                    } ${date === first && date !== value ? 'text-accent' : ''}`}
+                    aria-label={longDate(date)}
+                    aria-pressed={date === value}
+                    onClick={() => {
+                      onChange(date)
+                      setOpen(false)
+                    }}
+                  >
+                    {toDate(date).getDate()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const PLEDGE = 'i will not back off'
 
 // What someone agrees to, a line at a time, before they see the pledge.
 const TERMS = [
-  "My arc starts today and runs until {ends}. I can't pause it or end it early.",
+  "My arc starts {starts} and runs until {ends}. I can't pause it, move the start or end it early.",
   'Every day a track runs, I commit with a message and a photo of the work. No commit means the day is missed, and one missed day takes me off the board.',
   "My tracks and their checkpoints are final. I can add more later, but I can't remove or change them.",
   "I've planned for my worst week, not my best. I can find {weekly} every week, even when I'm tired, busy or not in the mood.",
 ]
 
-type PledgeProps = { tracks: NewTrack[]; ends: string; days: number; onConfirm: () => void; onCancel: () => void }
+type PledgeProps = { tracks: NewTrack[]; starts: string; ends: string; days: number; onConfirm: () => void; onCancel: () => void }
 
 // The last thing before an arc exists, in two steps. First the terms, each
 // ticked off by hand. Then what's being decided, a nudge to keep it
 // realistic, and a line to type out so nobody commits by accident.
-function Pledge({ tracks, ends, days, onConfirm, onCancel }: PledgeProps) {
+function Pledge({ tracks, starts, ends, days, onConfirm, onCancel }: PledgeProps) {
   const [typed, setTyped] = useState('')
   // Capitals and stray spaces don't matter; the words do.
   const matches = typed.trim().replace(/\s+/g, ' ').toLowerCase() === PLEDGE
@@ -172,7 +282,7 @@ function Pledge({ tracks, ends, days, onConfirm, onCancel }: PledgeProps) {
   const allAgreed = agreed.every(Boolean)
 
   // The size of the promise, in hours: each week, each day on average, and
-  // added up over every day from now to the end.
+  // added up over every day from the start to the end.
   const weekly = tracks.reduce((sum, t) => sum + t.days.length * t.minutes, 0)
   const hours = (minutes: number) => {
     const h = Math.floor(minutes / 60)
@@ -257,7 +367,7 @@ function Pledge({ tracks, ends, days, onConfirm, onCancel }: PledgeProps) {
                         checked={agreed[i]}
                         onChange={(e) => setAgreed(agreed.map((a, j) => (j === i ? e.target.checked : a)))}
                       />
-                      <span>{term.replace('{ends}', ends).replace('{weekly}', hours(weekly))}</span>
+                      <span>{term.replace('{starts}', starts).replace('{ends}', ends).replace('{weekly}', hours(weekly))}</span>
                     </label>
                   </li>
                 ))}
@@ -294,7 +404,7 @@ function Pledge({ tracks, ends, days, onConfirm, onCancel }: PledgeProps) {
               </div>
 
               <p className="text-[15px] leading-relaxed text-muted">
-                This is what you're deciding from today until {ends}. Once it's created you can't end the arc or delete a
+                This is what you're deciding from {starts.replace(/^on /, '')} until {ends}. Once it's created you can't end the arc or delete a
                 track, and every track's checkpoint list is final. You can add more tracks later.
               </p>
 

@@ -102,6 +102,8 @@ test("before the start and after the end", () => {
   assert.equal(early.startsIn, 24);
   assert.equal(early.dayNumber, 0);
   assert.equal(early.isOver, false);
+  assert.equal(early.tracks[0].dueToday, false);
+  assert.equal(early.today.total, 0);
 
   const late = buildArcView(empty, "2027-02-10");
   assert.equal(late.isOver, true);

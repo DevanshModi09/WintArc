@@ -99,7 +99,11 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
             <h1 className="text-[32px] leading-none font-medium sm:text-[40px]">
               {arc.isOver
                 ? `Finished with ${arc.perfectDays} perfect days`
-                : due.length === 0
+                : arc.startsIn > 0
+                  ? arc.startsIn === 1
+                    ? 'Your arc starts tomorrow'
+                    : `Your arc starts in ${arc.startsIn} days`
+                  : due.length === 0
                   ? 'Rest day'
                   : arc.today.done === arc.today.total
                     ? 'Day locked in'
@@ -146,7 +150,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
           </div>
           {arc.tracks.map((track, i) => (
             <Rise key={track.id} index={i}>
-              <TrackCard track={track} open={!arc.isOver} run={run} />
+              <TrackCard track={track} open={!arc.isOver && arc.startsIn === 0} run={run} />
             </Rise>
           ))}
           {!arc.isOver && (
@@ -154,7 +158,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               All checkpoints
             </Link>
           )}
-          {!arc.isOver && (
+          {!arc.isOver && arc.startsIn === 0 && (
             <ReflectionCard
               key={today()}
               saved={arc.reflections?.find((r) => r.date === today())?.text ?? ''}

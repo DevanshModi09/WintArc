@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { currentArc } from "../arcs";
-import { parseToday, season, weekday } from "../dates";
+import { isDateStr, parseToday, season, weekday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
@@ -53,6 +53,8 @@ const sessionGoal = (startsOn: string) => ({ title: "Session", startsOn });
 const ARC_NAME = "Winter Arc";
 
 const createArcSchema = z.object({
+  // The day the arc begins. Left out, it begins today.
+  startDate: z.string().refine(isDateStr, "Invalid start date").optional(),
   tracks: z.array(newTrackSchema).min(1, "Add at least one track").max(MAX_TRACKS),
 });
 
@@ -89,25 +91,28 @@ arcRouter.get("/arc", async (req, res) => {
   res.json(await arcResponse(res.locals.userId, parseToday(req.query.today)));
 });
 
-// An arc starts the day it's created and runs to 1 January. There is
+// An arc starts on the day picked when it's created, any day from today to
+// the last day of the season's starts, and runs to 1 January. There is
 // deliberately no way to delete one: once it's set up, it runs.
 arcRouter.post("/arc", async (req, res) => {
   const today = parseToday(req.body?.today);
-  const { tracks } = createArcSchema.parse(req.body);
-  const { canStart, endDate } = season(today);
+  const { tracks, startDate = today } = createArcSchema.parse(req.body);
+  const { canStart, lastStart, endDate } = season(today);
   if (!canStart) throw new HttpError(400, "This year's arc is closed to new starts. Come back next year.");
+  if (startDate < today) throw new HttpError(400, "Your arc can't start in the past");
+  if (startDate > lastStart) throw new HttpError(400, "Your arc has to start by 10 November");
   const running = await currentArc(res.locals.userId);
   if (running && running.endDate >= today) throw new HttpError(409, "You already have an arc running");
   await prisma.arc.create({
     data: {
       userId: res.locals.userId,
       name: ARC_NAME,
-      startDate: today,
+      startDate,
       endDate,
       tracks: {
         create: tracks.map(({ checkpoints, ...track }) => ({
           ...track,
-          goals: { create: [sessionGoal(today)] },
+          goals: { create: [sessionGoal(startDate)] },
           checkpoints: newCheckpoints(checkpoints),
         })),
       },
@@ -124,7 +129,7 @@ arcRouter.post("/tracks", async (req, res) => {
   if (today > arc.endDate) throw new HttpError(400, "This arc is over");
   if (arc.tracks.length >= MAX_TRACKS) throw new HttpError(400, `You can have up to ${MAX_TRACKS} tracks`);
   await prisma.track.create({
-    data: { ...track, arcId: arc.id, goals: { create: [sessionGoal(today)] }, checkpoints: newCheckpoints(checkpoints) },
+    data: { ...track, arcId: arc.id, goals: { create: [sessionGoal(today > arc.startDate ? today : arc.startDate)] }, checkpoints: newCheckpoints(checkpoints) },
   });
   res.status(201).json(await arcResponse(res.locals.userId, today));
 });
