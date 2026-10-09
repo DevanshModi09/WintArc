@@ -6,13 +6,14 @@ import type { Arc, DayStatus } from './api'
 const W = 1080
 const H = 1350
 const PAD = 80
-const BG = '#0a0a0a'
-const FG = '#ededed'
-const MUTED = '#a1a1a1'
-const CELLS: Record<DayStatus, string> = { perfect: FG, partial: '#6b6b6b', missed: '#5c2424', empty: '#1f1f1f' }
+const BG = '#141413'
+const FG = '#f3f0ee'
+const MUTED = '#a8a39d'
+const CELLS: Record<DayStatus, string> = { perfect: FG, partial: '#77716a', missed: '#6b2d16', empty: '#2a2826' }
 
-const SANS = "'Space Grotesk', system-ui, sans-serif"
-const MONO = "'Geist Mono', ui-monospace, monospace"
+const SANS = "'Sofia Sans', Arial, sans-serif"
+// The small print is the same face, just lighter.
+const MONO = SANS
 
 // `tiles` are up to six [number, label] pairs. `days` is how much of the grid
 // to fill in, for a wrap of only the first part of the arc.
@@ -57,7 +58,7 @@ export async function wrappedImage({ arc, username, title, subtitle, tiles, foot
   for (let i = 0; i < arc.totalDays; i++) {
     ctx.fillStyle = CELLS[(i < days && arc.days[i]?.status) || 'empty']
     ctx.beginPath()
-    ctx.roundRect(PAD + (i % cols) * (cell + gap), 360 + Math.floor(i / cols) * (cell + gap), cell, cell, 6)
+    ctx.roundRect(PAD + (i % cols) * (cell + gap), 360 + Math.floor(i / cols) * (cell + gap), cell, cell, cell / 2)
     ctx.fill()
   }
 

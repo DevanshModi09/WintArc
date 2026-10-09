@@ -96,7 +96,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="font-mono text-muted">
+          <div className="eyebrow">
             {arc.name} · {arcPhase(arc)}
             {standing && (
               <>
@@ -107,7 +107,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               </>
             )}
           </div>
-          <h1 className="mt-1 text-[32px] leading-[1.1] font-bold">
+          <h1 className="mt-3 text-[40px] leading-none font-medium">
             {arc.isOver
               ? `Finished with ${arc.perfectDays} perfect days`
               : notStarted

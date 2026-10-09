@@ -75,7 +75,7 @@ function ProfileView({ username }: { username: string }) {
           <Avatar user={user} size="lg" />
         )}
         <div className="min-w-48 flex-1">
-          <h1 className="text-[32px] leading-[1.1] font-bold">{user.name}</h1>
+          <h1 className="text-[40px] leading-none font-medium">{user.name}</h1>
           <div className="mt-1 font-mono text-muted">
             @{user.username}
             {arc && ` · ${arc.name} · ${arcPhase(arc)}`}
@@ -370,7 +370,7 @@ function EditProfile({ user, onSave, onRemovePhoto, onCancel }: EditProfileProps
       </label>
       <div className="space-y-1.5">
         <span className="label">Tech stack</span>
-        <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-xl border border-line px-2 py-1.5 focus-within:border-fg">
+        <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-[20px] border border-fg/25 bg-surface px-2 py-1.5 focus-within:border-fg">
           {stack.map((tag) => (
             <span key={tag} className="flex items-center gap-1.5 rounded-full bg-subtle px-3 py-1 font-mono text-[13px]">
               {tag}

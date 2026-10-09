@@ -17,7 +17,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     if (!this.state.failed) return this.props.children
     return (
       <main className="mx-auto max-w-sm space-y-4 px-6 py-24">
-        <h1 className="text-[32px] leading-[1.1] font-bold">Something broke</h1>
+        <h1 className="text-[40px] leading-none font-medium">Something broke</h1>
         <p className="text-muted">Your progress is safe. Reloading usually sorts it out.</p>
         <button className="btn w-full" onClick={() => window.location.reload()}>
           Reload

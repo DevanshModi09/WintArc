@@ -6,7 +6,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { Logo } from './ArcParts'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  isActive ? 'font-medium text-fg' : 'text-muted hover:text-fg'
+  isActive ? 'font-bold tracking-[-0.02em] text-fg' : 'font-medium tracking-[-0.02em] text-muted hover:text-fg'
 
 export function Layout({ user }: { user: User }) {
   const navigate = useNavigate()
@@ -22,7 +22,7 @@ export function Layout({ user }: { user: User }) {
 
   return (
     <>
-      <nav className="flex min-h-14 flex-wrap items-center gap-x-6 gap-y-2 border-b border-line px-4 py-2 sm:px-8">
+      <nav className="mx-4 mt-6 flex min-h-14 max-w-[1040px] flex-wrap items-center gap-x-6 gap-y-2 rounded-[28px] bg-surface px-6 py-2 shadow-nav sm:mx-8 lg:rounded-full xl:mx-auto">
         <Link to="/">
           <Logo />
         </Link>

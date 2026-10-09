@@ -1,33 +1,48 @@
 @import 'tailwindcss';
 
-/* Semantic colours: "bg" is the page, "fg" is text and solid fills.
-   Dark mode just swaps the values, so components never mention a theme. */
+/* The look follows docs/DESIGN.md: a warm cream canvas, ink for text and
+   solid fills, pill shapes, and one orange kept for small signals.
+
+   Semantic colours: "bg" is the page, "raised" is a card laid on it, "surface"
+   is the brightest layer (nav, inputs, outline buttons), "fg" is text and
+   solid fills. Dark mode just swaps the values, so components never mention
+   a theme. */
 @theme {
-  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  /* Headings share the body face, set tighter. */
-  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, monospace;
-  --color-bg: #ffffff;
-  --color-fg: #000000;
-  --color-line: #eaeaea;
-  --color-muted: #666666;
-  --color-subtle: #f5f5f5;
-  --color-cell: #f0f0f0;
-  --color-cell-partial: #a3a3a3;
-  --color-cell-missed: #f5c2c2;
+  --font-sans: 'Sofia Sans', Arial, sans-serif;
+  /* One typeface throughout: headings and numbers share the body face. */
+  --font-display: 'Sofia Sans', Arial, sans-serif;
+  --font-mono: 'Sofia Sans', Arial, sans-serif;
+  --color-bg: #f3f0ee;
+  --color-raised: #fcfbfa;
+  --color-surface: #ffffff;
+  --color-fg: #141413;
+  --color-line: #e2ddd7;
+  --color-muted: #696969;
+  --color-subtle: #ebe7e3;
+  --color-cell: #e6e1db;
+  --color-cell-partial: #a8a29b;
+  --color-cell-missed: #f0c4b0;
+  --color-accent: #cf4500;
   --color-danger: #b42318;
+  --shadow-nav: 0 4px 24px 0 rgb(0 0 0 / 0.04);
 }
 
+/* The design has no dark palette of its own, so this one is derived from it:
+   the ink footer colour becomes the canvas and the cream becomes the text. */
 :root[data-theme='dark'] {
-  --color-bg: #0a0a0a;
-  --color-fg: #ededed;
-  --color-line: #2a2a2a;
-  --color-muted: #a1a1a1;
-  --color-subtle: #171717;
-  --color-cell: #1f1f1f;
-  --color-cell-partial: #6b6b6b;
-  --color-cell-missed: #5c2424;
+  --color-bg: #141413;
+  --color-raised: #1c1b1a;
+  --color-surface: #262627;
+  --color-fg: #f3f0ee;
+  --color-line: #34322f;
+  --color-muted: #a8a39d;
+  --color-subtle: #232221;
+  --color-cell: #2a2826;
+  --color-cell-partial: #77716a;
+  --color-cell-missed: #6b2d16;
+  --color-accent: #f37338;
   --color-danger: #ff8a80;
+  --shadow-nav: 0 4px 24px 0 rgb(0 0 0 / 0.3);
   color-scheme: dark;
 }
 
@@ -37,7 +52,11 @@ body {
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
+  /* A half step between regular and medium: softer than 500, firmer than 400. */
+  font-weight: 450;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -55,13 +74,13 @@ button:disabled {
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-[20px] border border-line bg-bg;
+    @apply rounded-[24px] border border-line bg-raised;
   }
   /* Rows with their own background follow the card's rounded corners. */
   .card > :first-child {
@@ -73,18 +92,26 @@ button:disabled {
     border-bottom-left-radius: inherit;
   }
   .input {
-    @apply h-10 w-full rounded-xl border border-line bg-bg px-3.5 outline-none placeholder:text-muted focus:border-fg;
+    @apply h-10 w-full rounded-full border border-fg/25 bg-surface px-5 outline-none placeholder:text-muted focus:border-fg;
   }
   .btn {
-    @apply inline-flex h-10 items-center justify-center rounded-full bg-fg px-5 font-medium whitespace-nowrap text-bg transition hover:bg-fg/80;
+    @apply inline-flex h-10 items-center justify-center rounded-[20px] border-[1.5px] border-fg bg-fg px-6 font-medium tracking-[-0.02em] whitespace-nowrap text-bg transition hover:bg-fg/85 active:scale-[0.98];
   }
   .btn-outline {
-    @apply inline-flex h-10 items-center justify-center rounded-full border border-line bg-bg px-5 font-medium whitespace-nowrap transition hover:border-fg;
+    @apply inline-flex h-10 items-center justify-center rounded-[20px] border-[1.5px] border-fg bg-surface px-6 tracking-[-0.02em] whitespace-nowrap transition hover:bg-subtle active:scale-[0.98];
   }
   .label {
-    @apply text-[13px] text-muted;
+    @apply text-[14px] text-muted;
   }
   .h2 {
-    @apply text-lg font-semibold;
+    @apply text-2xl leading-[1.2] font-medium;
+  }
+  /* The small category line above a page title: a dot, then bold capitals. */
+  .eyebrow {
+    @apply flex flex-wrap items-center gap-x-2 text-[14px] leading-none font-bold tracking-[0.04em] uppercase;
+  }
+  .eyebrow::before {
+    content: '';
+    @apply size-2 shrink-0 rounded-full bg-accent;
   }
 }

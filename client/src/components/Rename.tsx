@@ -18,7 +18,7 @@ export function Rename({ value, label, maxLength, onSave, onCancel }: RenameProp
   return (
     <input
       autoFocus
-      className="h-8 min-w-0 flex-1 rounded-xl border border-fg bg-transparent px-2 outline-none"
+      className="h-8 min-w-0 flex-1 rounded-full border border-fg bg-surface px-3.5 outline-none"
       aria-label={label}
       maxLength={maxLength}
       value={draft}

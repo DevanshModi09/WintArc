@@ -57,7 +57,7 @@ export function ArcSetup({ onCreated }: { onCreated: (arc: Arc | null) => void }
   return (
     <form onSubmit={submit} className="mx-auto max-w-[560px] space-y-8">
       <header>
-        <h1 className="text-[32px] leading-[1.1] font-bold">Set up your arc</h1>
+        <h1 className="text-[40px] leading-none font-medium">Set up your arc</h1>
         <p className="mt-2 text-muted">
           Split it into tracks like Web Dev, DSA or Badminton. Pick the days each one runs on and the goals you'll hit
           on those days. A goal can be broken into mini tasks, and it's done once they all are.

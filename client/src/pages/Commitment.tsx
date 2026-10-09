@@ -49,14 +49,14 @@ export function Commitment({ signedIn = false }: { signedIn?: boolean }) {
             </div>
             {arc ? (
               <>
-                <h1 className="text-[40px] leading-none font-bold">{arc.name}</h1>
-                <p className="font-mono text-muted">
+                <h1 className="text-[48px] leading-none font-medium">{arc.name}</h1>
+                <p className="eyebrow">
                   {arc.totalDays} days · {arcPhase(arc)}
                   {standing && ` · ${standing}`}
                 </p>
               </>
             ) : (
-              <h1 className="text-[32px] leading-[1.1] font-bold">No arc running right now</h1>
+              <h1 className="text-[40px] leading-none font-medium">No arc running right now</h1>
             )}
             {data.user.bio && <p className="text-muted">{data.user.bio}</p>}
           </header>

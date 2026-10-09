@@ -27,7 +27,7 @@ export function Onboarding({ suggestedName, onDone }: { suggestedName: string; o
     <main className="mx-auto flex min-h-screen max-w-[360px] flex-col justify-center px-6 py-12">
       <ThemeToggle className="fixed top-5 right-6" />
       <Logo />
-      <h1 className="mt-8 text-[32px] leading-[1.1] font-bold">Set up your profile</h1>
+      <h1 className="mt-8 text-[40px] leading-none font-medium">Set up your profile</h1>
       <p className="mt-2 text-muted">Friends will find you by your username.</p>
 
       <form onSubmit={submit} className="mt-8 space-y-3">
@@ -37,7 +37,7 @@ export function Onboarding({ suggestedName, onDone }: { suggestedName: string; o
         </label>
         <label className="block space-y-1.5">
           <span className="label">Username</span>
-          <div className="flex items-center rounded-xl border border-line focus-within:border-fg">
+          <div className="flex items-center rounded-full border border-fg/25 bg-surface focus-within:border-fg">
             <span className="pl-3 font-mono text-muted">@</span>
             <input
               className="h-10 w-full bg-transparent px-1 font-mono outline-none"

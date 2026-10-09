@@ -3,7 +3,7 @@ import { today, type Arc, type DayStatus, type PublicUser } from '../api'
 
 export function Logo() {
   return (
-    <span className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
+    <span className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <polygon points="12 3 22 21 2 21" />
       </svg>
@@ -31,7 +31,7 @@ export function Avatar({ user: { name, avatarUrl }, size = 'sm' }: AvatarProps) 
 export function Checkbox({ checked }: { checked: boolean }) {
   return (
     <span
-      className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+      className={`flex size-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] ${
         checked ? 'border-fg bg-fg text-bg' : 'border-muted'
       }`}
     >
@@ -50,7 +50,7 @@ export function StatStrip({ stats }: { stats: { label: string; value: ReactNode 
       {stats.map((s) => (
         <div key={s.label} className="-mr-px -mb-px border-r border-b border-line p-5">
           <div className="label">{s.label}</div>
-          <div className="mt-1.5 font-mono text-3xl font-semibold">{s.value}</div>
+          <div className="mt-1.5 text-[32px] leading-none font-medium tracking-[-0.02em]">{s.value}</div>
         </div>
       ))}
     </div>
@@ -80,7 +80,7 @@ export function ActivityGrid({ arc }: { arc: Arc }) {
             <div
               key={i}
               title={day ? `${day.date}: ${day.status}` : `Day ${i + 1}`}
-              className={`aspect-square rounded-[2px] ${color}`}
+              className={`aspect-square rounded-full ${color}`}
             />
           )
         })}
@@ -148,7 +148,7 @@ export function Loading() {
 export function ErrorNote({ message }: { message: string }) {
   if (!message) return null
   return (
-    <p role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-danger">
+    <p role="alert" className="rounded-[20px] border border-danger/30 bg-danger/10 px-4 py-2.5 text-danger">
       {message}
     </p>
   )

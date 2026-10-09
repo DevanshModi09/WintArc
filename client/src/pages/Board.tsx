@@ -34,12 +34,12 @@ export function Board() {
   return (
     <div className="mx-auto max-w-[640px] space-y-8">
       <header>
-        <div className="font-mono text-muted">
+        <div className="eyebrow">
           {waiting
             ? `Starts ${startDay(season.startDate)} · in ${season.startsIn} ${season.startsIn === 1 ? 'day' : 'days'}`
             : `Day ${season.dayNumber} of ${season.totalDays}`}
         </div>
-        <h1 className="mt-1 text-[32px] leading-[1.1] font-bold">
+        <h1 className="mt-3 text-[40px] leading-none font-medium">
           {waiting ? `${people(started)} locked in` : `${standing.toLocaleString()} of ${started.toLocaleString()} still standing`}
         </h1>
         <p className="mt-2 text-muted">{mine}</p>

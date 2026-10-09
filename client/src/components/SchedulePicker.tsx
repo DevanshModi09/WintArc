@@ -63,7 +63,7 @@ function Dropdown<T extends string | number | null>({ label, value, options, onC
         </svg>
       </button>
       {open && (
-        <div role="listbox" aria-label={label} className="card absolute top-9 left-0 z-10 max-h-56 rounded-xl min-w-full overflow-y-auto p-1 shadow-lg">
+        <div role="listbox" aria-label={label} className="card absolute top-9 left-0 z-10 max-h-56 rounded-[20px] min-w-full overflow-y-auto p-1 shadow-lg">
           {options.map((o) => (
             <button
               key={String(o.value)}
