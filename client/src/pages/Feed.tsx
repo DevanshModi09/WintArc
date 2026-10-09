@@ -11,8 +11,8 @@ const feedDay = (date: string) => {
 }
 
 // What you and your friends have committed over the last week, newest first:
-// a card per person per day, each commit with its message and the checkpoint
-// it went towards. Photos are private, so they're never here.
+// a card per commit, saying who committed to which track, with the message
+// and the checkpoint it went towards. Photos are private, so never here.
 export function Feed() {
   const [entries, setEntries] = useState<FeedEntry[]>()
   const [error, setError] = useState('')
@@ -46,33 +46,31 @@ export function Feed() {
         </p>
       )}
 
-      {entries?.map((entry) => (
-        <article key={`${entry.user.id} ${entry.date}`} className="card">
-          <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-            <Link to={`/u/${entry.user.username}`} className="flex min-w-0 flex-1 items-center gap-3">
-              <Avatar user={entry.user} />
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{entry.user.name}</span>
-                <span className="label block truncate">@{entry.user.username}</span>
-              </span>
-            </Link>
-            <span className="label whitespace-nowrap">
-              {entry.items.length} {entry.items.length === 1 ? 'commit' : 'commits'} · {feedDay(entry.date)}
-            </span>
-          </div>
-          <ul className="divide-y divide-line">
-            {entry.items.map((item) => (
-              <li key={item.id} className="px-4 py-3">
-                <p className="break-words">{item.note ?? <span className="text-muted">No message</span>}</p>
-                <p className="label mt-1 truncate">
-                  {item.track}
-                  {item.checkpoint && ` · ${item.checkpoint}`}
+      {/* One line of who did what per commit, with the message quoted under it. */}
+      <ol className="space-y-3">
+        {entries?.flatMap((entry) =>
+          entry.items.map((item) => (
+            <li key={item.id} className="card flex gap-3 p-4">
+              <Link to={`/u/${entry.user.username}`} className="shrink-0">
+                <Avatar user={entry.user} />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <p className="leading-snug">
+                  <Link to={`/u/${entry.user.username}`} className="font-medium hover:underline">
+                    {entry.user.name.split(' ')[0]}
+                  </Link>{' '}
+                  <span className="text-muted">committed to</span> <span className="font-medium">{item.track}</span>
+                  <span className="label"> · {feedDay(entry.date)}</span>
                 </p>
-              </li>
-            ))}
-          </ul>
-        </article>
-      ))}
+                <blockquote className="mt-2 border-l-2 border-accent pl-3 break-words">
+                  {item.note ? `“${item.note}”` : <span className="text-muted">No message</span>}
+                </blockquote>
+                {item.checkpoint && <p className="label mt-2 truncate">Working on {item.checkpoint}</p>}
+              </div>
+            </li>
+          )),
+        )}
+      </ol>
     </div>
   )
 }
