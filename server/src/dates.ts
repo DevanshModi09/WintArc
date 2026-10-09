@@ -27,14 +27,16 @@ export function weekday(date: string): number {
   return toUtc(date).getUTCDay();
 }
 
-export const ARC_DAYS = 90;
-
-// Everyone's arc runs on the same calendar: 90 days from 1 November.
-// Returns the start of the arc that is running on `today`, or else the next one.
-export function seasonStart(today: string): string {
-  const year = Number(today.slice(0, 4));
-  const previous = `${year - 1}-11-01`;
-  return today <= addDays(previous, ARC_DAYS - 1) ? previous : `${year}-11-01`;
+// Every winter arc ends on 1 January. One can be started from 1 October up to
+// and including 10 November, and it begins the day it's created, so an arc is
+// somewhere between 53 and 93 days long. This is the season `today` falls in:
+// the one running or coming up this year, or on 1 January itself the one
+// that's just finishing.
+export function season(today: string) {
+  const year = Number(today.slice(0, 4)) - (today.slice(5) === "01-01" ? 1 : 0);
+  const opens = `${year}-10-01`;
+  const lastStart = `${year}-11-10`;
+  return { opens, lastStart, endDate: `${year + 1}-01-01`, canStart: today >= opens && today <= lastStart };
 }
 
 // The client tells us its local date. Any real timezone is within one

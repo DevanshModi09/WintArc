@@ -6,6 +6,7 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { requireAuth, requireProfile } from "./auth";
+import { startProofCleanup } from "./cleanup";
 import { prisma } from "./db";
 import { env, isProduction } from "./env";
 import { errorHandler } from "./errors";
@@ -30,12 +31,15 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        // Google's sign-in button is a script, a stylesheet and a frame of theirs.
+        scriptSrc: ["'self'", "https://accounts.google.com/gsi/client"],
+        frameSrc: ["https://accounts.google.com/gsi/"],
         // React sets inline style attributes (progress bars).
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com/gsi/style"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'", supabaseOrigin, supabaseOrigin.replace(/^http/, "ws")],
+        // Proof photos are served straight from Supabase Storage.
+        imgSrc: ["'self'", "data:", "blob:", supabaseOrigin],
+        connectSrc: ["'self'", supabaseOrigin, supabaseOrigin.replace(/^http/, "ws"), "https://accounts.google.com/gsi/"],
         frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
@@ -105,6 +109,7 @@ app.use(errorHandler);
 
 const server = app.listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${env.PORT}`);
+  startProofCleanup();
 });
 
 // Let requests in flight finish before the process goes away on a deploy.

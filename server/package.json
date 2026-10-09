@@ -6,7 +6,7 @@
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "prisma generate && tsc --noEmit",
     "start": "NODE_ENV=production tsx --env-file-if-exists=.env src/index.ts",
-    "db:push": "prisma db push && prisma db execute --file prisma/rls.sql",
+    "db:push": "prisma db push && prisma db execute --file prisma/rls.sql && prisma db execute --file prisma/storage.sql",
     "db:studio": "prisma studio",
     "test": "tsx --test \"src/**/*.test.ts\""
   },

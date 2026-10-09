@@ -123,7 +123,7 @@ authRouter.get("/export", async (_req, res) => {
               goals: {
                 orderBy: { createdAt: "asc" },
                 include: {
-                  checkIns: { select: { date: true, note: true, link: true }, orderBy: { date: "asc" } },
+                  checkIns: { select: { date: true, note: true, photo: true }, orderBy: { date: "asc" } },
                   subtasks: { select: { title: true }, orderBy: { createdAt: "asc" } },
                 },
               },

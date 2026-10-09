@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { addDays, diffDays, isDateStr, parseToday, seasonStart, weekday } from "./dates";
+import { addDays, diffDays, isDateStr, parseToday, season, weekday } from "./dates";
 
 test("addDays crosses months and years", () => {
   assert.equal(addDays("2026-12-31", 1), "2027-01-01");
@@ -24,11 +24,18 @@ test("isDateStr rejects things that aren't dates", () => {
   assert.equal(isDateStr(20261101), false);
 });
 
-test("seasonStart picks the running arc, or else the next one", () => {
-  assert.equal(seasonStart("2026-10-08"), "2026-11-01");
-  assert.equal(seasonStart("2026-11-01"), "2026-11-01");
-  assert.equal(seasonStart("2027-01-29"), "2026-11-01");
-  assert.equal(seasonStart("2027-01-30"), "2027-11-01");
+test("an arc can be started from 1 October to 10 November and ends on 1 January", () => {
+  assert.deepEqual(season("2026-10-09"), { opens: "2026-10-01", lastStart: "2026-11-10", endDate: "2027-01-01", canStart: true });
+  assert.equal(season("2026-10-01").canStart, true);
+  assert.equal(season("2026-11-10").canStart, true);
+  assert.equal(season("2026-09-30").canStart, false);
+  assert.equal(season("2026-11-11").canStart, false);
+});
+
+test("1 January still belongs to the season that's finishing", () => {
+  assert.equal(season("2027-01-01").endDate, "2027-01-01");
+  assert.equal(season("2027-01-01").canStart, false);
+  assert.deepEqual(season("2027-01-02"), { opens: "2027-10-01", lastStart: "2027-11-10", endDate: "2028-01-01", canStart: false });
 });
 
 test("parseToday only accepts dates within a day of now", () => {

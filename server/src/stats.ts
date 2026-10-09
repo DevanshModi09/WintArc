@@ -33,7 +33,7 @@ type GoalInput = {
   title: string;
   emoji: string | null;
   startsOn: string;
-  checkIns: { date: string; note?: string | null; link?: string | null }[];
+  checkIns: { date: string; note?: string | null; photo?: string | null; photoPublic?: boolean }[];
   subtasks: { id: string; title: string; doneOn: string | null }[];
 };
 
@@ -45,7 +45,7 @@ type TrackInput = {
   minutes: number;
   startTime: string | null;
   reminder: number | null;
-  checkpoints: { id: string; title: string; doneAt: Date | null }[];
+  checkpoints: { id: string; title: string; doneAt: Date | null; doneOn?: string | null }[];
   goals: GoalInput[];
 };
 
@@ -57,16 +57,28 @@ type ArcInput = {
   tracks: TrackInput[];
 };
 
-// `days` is the track's schedule, copied down so a goal knows when it's due.
-type Goal = GoalInput & { done: Set<string>; days: number[] };
+// `days` is the track's schedule and `completedOn` the day its last checkpoint
+// was finished, both copied down so a goal knows when it's due.
+type Goal = GoalInput & { done: Set<string>; days: number[]; completedOn: string | null };
 
 // A goal only counts on the weekdays its track is scheduled for.
 function isDue(goal: Goal, date: string) {
-  return goal.startsOn <= date && goal.days.includes(weekday(date));
+  if (goal.startsOn > date || !goal.days.includes(weekday(date))) return false;
+  // A finished track asks nothing more, though a check-in made on the day it
+  // was finished still counts.
+  if (goal.completedOn && date >= goal.completedOn) return goal.done.has(date);
+  return true;
 }
 
-// A goal can be reworded or dropped on the day it's added, and any time before
-// the arc starts. After that it's locked in: the bar only ever goes up.
+// The day a track's last checkpoint was finished, or null while any is open.
+// A track without checkpoints is never finished: it just runs every day.
+function completedOn(checkpoints: TrackInput["checkpoints"]) {
+  if (checkpoints.length === 0 || checkpoints.some((c) => c.doneAt === null)) return null;
+  return checkpoints.map((c) => c.doneOn ?? c.doneAt!.toISOString().slice(0, 10)).sort().at(-1)!;
+}
+
+// A track can be dropped on the day it's added, and any time before the arc
+// starts. After that it's locked in: the bar only ever goes up.
 export function isLocked(goal: { startsOn: string }, today: string) {
   return goal.startsOn < today;
 }
@@ -118,7 +130,12 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
 
   const tracks = arc.tracks.map((t) => ({
     ...t,
-    goals: t.goals.map((g): Goal => ({ ...g, days: t.days, done: new Set(g.checkIns.map((c) => c.date)) })),
+    goals: t.goals.map((g): Goal => ({
+      ...g,
+      days: t.days,
+      completedOn: completedOn(t.checkpoints),
+      done: new Set(g.checkIns.map((c) => c.date)),
+    })),
   }));
   const allGoals = tracks.flatMap((t) => t.goals);
   const dueToday = allGoals.filter((g) => isDue(g, today));
@@ -167,38 +184,39 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
     days: days.map(({ date, status, done }) => ({ date, status, done })),
     tracks: tracks
       .filter((t) => t.isPublic || !opts.publicOnly)
-      .map((t) => ({
-        id: t.id,
-        name: t.name,
-        isPublic: t.isPublic,
-        days: t.days,
-        minutes: t.minutes,
-        startTime: t.startTime,
-        reminder: t.reminder,
-        dueToday: t.days.includes(weekday(today)),
-        // A track holding a locked goal can't be deleted.
-        locked: t.goals.some((g) => isLocked(g, today)),
-        checkpoints: t.checkpoints.map((c) => ({ id: c.id, title: c.title, done: c.doneAt !== null })),
-        streak: summarize(t.goals, dates, todayInArc).streak,
-        goals: t.goals.map((g) => {
-          const goalDates = dates.filter((d) => isDue(g, d));
-          const checkIn = g.checkIns.find((c) => c.date === today);
-          return {
-            id: g.id,
-            title: g.title,
-            emoji: g.emoji,
-            locked: isLocked(g, today),
-            doneToday: g.done.has(today),
-            proof: checkIn && (checkIn.note || checkIn.link) ? { note: checkIn.note ?? null, link: checkIn.link ?? null } : null,
-            // Subtasks reset every day: one ticked yesterday is open again.
-            subtasks: g.subtasks.map((s) => ({ id: s.id, title: s.title, done: s.doneOn === today })),
-            total: goalDates.filter((d) => g.done.has(d)).length,
-            streak: streaks(
-              goalDates.map((d) => g.done.has(d)),
-              todayInArc && goalDates.at(-1) === today,
-            ),
-          };
-        }),
-      })),
+      .map((t) => {
+        // The checkpoint being worked on: the first in line not yet finished.
+        const next = t.checkpoints.findIndex((c) => c.doneAt === null);
+        const complete = t.checkpoints.length > 0 && next === -1;
+        const doneToday = t.goals.some((g) => g.done.has(today));
+        const checkIn = t.goals.flatMap((g) => g.checkIns).find((c) => c.date === today);
+        return {
+          id: t.id,
+          name: t.name,
+          isPublic: t.isPublic,
+          days: t.days,
+          minutes: t.minutes,
+          startTime: t.startTime,
+          reminder: t.reminder,
+          // False on its off days, and once every checkpoint is finished.
+          dueToday: t.days.includes(weekday(today)) && (!complete || doneToday),
+          // A track that has been running for a day can't be deleted.
+          locked: t.goals.some((g) => isLocked(g, today)),
+          checkpoints: t.checkpoints.map((c) => ({ id: c.id, title: c.title, done: c.doneAt !== null })),
+          active: next === -1 ? null : { id: t.checkpoints[next].id, title: t.checkpoints[next].title, number: next + 1 },
+          complete,
+          doneToday,
+          // Today's proof: the photo's path in storage, the line with it, and
+          // whether friends get to see the photo. A photo kept private is left
+          // out for everyone but its owner.
+          proof:
+            checkIn?.photo && (checkIn.photoPublic !== false || !opts.publicOnly)
+              ? { photo: checkIn.photo, note: checkIn.note ?? null, shared: checkIn.photoPublic !== false }
+              : null,
+          // How many days a check-in was made.
+          total: new Set(t.goals.flatMap((g) => g.checkIns.map((c) => c.date)).filter((d) => dates.includes(d))).size,
+          streak: summarize(t.goals, dates, todayInArc).streak,
+        };
+      }),
   };
 }

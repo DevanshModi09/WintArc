@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { allArcs, type currentArc, currentArcs, seasonArcs } from "../arcs";
-import { ARC_DAYS, addDays, diffDays, parseToday, seasonStart } from "../dates";
+import { addDays, diffDays, parseToday, season } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
@@ -132,8 +132,8 @@ let board: { key: string; at: number; rows: Promise<BoardRow[]> } | undefined;
 
 type BoardRow = { user: ReturnType<typeof toPublicUser>; alive: boolean; fellOnDay: number | null; streak: number; xp: number; level: number };
 
-async function boardRows(startDate: string, today: string): Promise<BoardRow[]> {
-  const arcs = await seasonArcs(startDate);
+async function boardRows(endDate: string, today: string): Promise<BoardRow[]> {
+  const arcs = await seasonArcs(endDate);
   const users = await prisma.user.findMany({ where: { id: { in: [...arcs.keys()] } }, select: publicUserSelect });
   return users.flatMap((user) => {
     const arc = arcs.get(user.id)!;
@@ -146,10 +146,10 @@ async function boardRows(startDate: string, today: string): Promise<BoardRow[]> 
 
 socialRouter.get("/survivors", async (req, res) => {
   const today = parseToday(req.query.today);
-  const startDate = seasonStart(today);
-  const key = `${startDate} ${today}`;
+  const { endDate, lastStart, canStart } = season(today);
+  const key = `${endDate} ${today}`;
   if (board?.key !== key || Date.now() - board.at > BOARD_TTL_MS) {
-    board = { key, at: Date.now(), rows: boardRows(startDate, today) };
+    board = { key, at: Date.now(), rows: boardRows(endDate, today) };
     // A failed load shouldn't be served to the next viewer.
     board.rows.catch(() => (board = undefined));
   }
@@ -157,12 +157,8 @@ socialRouter.get("/survivors", async (req, res) => {
   const standing = rows.filter((r) => r.alive).sort((a, b) => b.xp - a.xp);
   const me = rows.find((r) => r.user.id === res.locals.userId);
   res.json({
-    season: {
-      startDate,
-      totalDays: ARC_DAYS,
-      startsIn: Math.max(0, diffDays(today, startDate)),
-      dayNumber: Math.min(ARC_DAYS, Math.max(0, diffDays(startDate, today) + 1)),
-    },
+    // Everyone finishes together, whenever they started.
+    season: { endDate, lastStart, canStart, daysLeft: Math.max(0, diffDays(today, endDate)) },
     started: rows.length,
     standing: standing.length,
     me: me ? { alive: me.alive, fellOnDay: me.fellOnDay } : null,
@@ -192,21 +188,26 @@ socialRouter.get("/feed", async (req, res) => {
       id: true,
       date: true,
       note: true,
-      link: true,
-      goal: { select: { title: true, track: { select: { name: true, arc: { select: { userId: true } } } } } },
+      photo: true,
+      photoPublic: true,
+      checkpoint: { select: { title: true } },
+      goal: { select: { track: { select: { name: true, arc: { select: { userId: true } } } } } },
     },
   });
 
   const users = await prisma.user.findMany({ where: { id: { in: [me, ...friendIds] } }, select: publicUserSelect });
   const byId = new Map(users.map((u) => [u.id, toPublicUser(u)]));
-  type Entry = { user: ReturnType<typeof toPublicUser>; date: string; items: { id: string; goal: string; track: string; note: string | null; link: string | null }[] };
+  type Item = { id: string; track: string; checkpoint: string | null; note: string | null; photo: string | null };
+  type Entry = { user: ReturnType<typeof toPublicUser>; date: string; items: Item[] };
   // Newest first, so each card sits where its latest check-in does.
   const entries = new Map<string, Entry>();
   for (const c of checkIns) {
     const userId = c.goal.track.arc.userId;
     const key = `${userId} ${c.date}`;
     if (!entries.has(key)) entries.set(key, { user: byId.get(userId)!, date: c.date, items: [] });
-    entries.get(key)!.items.push({ id: c.id, goal: c.goal.title, track: c.goal.track.name, note: c.note, link: c.link });
+    // A photo its owner kept private only ever goes back to them.
+    const photo = c.photoPublic || userId === me ? c.photo : null;
+    entries.get(key)!.items.push({ id: c.id, track: c.goal.track.name, checkpoint: c.checkpoint?.title ?? null, note: c.note, photo });
   }
   res.json({ entries: [...entries.values()].slice(0, 40) });
 });

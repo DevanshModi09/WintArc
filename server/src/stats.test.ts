@@ -74,7 +74,7 @@ test("a goal doesn't count before the day it was added", () => {
     view.days.map((d) => d.status),
     ["perfect", "perfect"],
   );
-  assert.equal(view.tracks[0].goals[1].total, 1);
+  assert.equal(view.tracks[0].total, 2);
 });
 
 test("XP adds up check-ins, perfect days and streak badges", () => {
@@ -109,20 +109,6 @@ test("before the start and after the end", () => {
   assert.equal(late.totalDays, 90);
 });
 
-test("subtasks only count as done on the day they were ticked", () => {
-  const g = goal("g", []);
-  g.subtasks = [
-    { id: "a", title: "a", doneOn: "2026-11-02" },
-    { id: "b", title: "b", doneOn: "2026-11-01" },
-    { id: "c", title: "c", doneOn: null },
-  ];
-  const view = buildArcView(arc(track("t", [g])), "2026-11-02");
-  assert.deepEqual(
-    view.tracks[0].goals[0].subtasks.map((s) => s.done),
-    [true, false, false],
-  );
-});
-
 test("checkpoints report whether they've been ticked", () => {
   const t = track("t", [goal("g", [])]);
   t.checkpoints = [
@@ -151,22 +137,57 @@ test("rest days don't knock you out, and an arc with no goals isn't in the runni
   assert.equal(buildArcView(arc(track("t", [])), "2026-11-03").survivor.alive, false);
 });
 
-test("a goal locks the day after it was added, and takes its track with it", () => {
+test("a track locks the day after it was added", () => {
   const fresh = buildArcView(arc(track("t", [goal("g", [], "2026-11-05")])), "2026-11-05");
-  assert.equal(fresh.tracks[0].goals[0].locked, false);
   assert.equal(fresh.tracks[0].locked, false);
 
   const next = buildArcView(arc(track("t", [goal("g", [], "2026-11-05")])), "2026-11-06");
-  assert.equal(next.tracks[0].goals[0].locked, true);
   assert.equal(next.tracks[0].locked, true);
 
   // Nothing is locked while the arc is still to come.
   assert.equal(buildArcView(arc(track("t", [goal("g", [])])), "2026-10-20").tracks[0].locked, false);
 });
 
-test("proof is only today's, and only when there is some", () => {
-  const g = { ...goal("g", []), checkIns: [{ date: "2026-11-01", note: "old", link: null }, { date: "2026-11-02", note: "shipped auth", link: null }] };
+test("proof is today's photo, and only when there is one", () => {
+  const g = { ...goal("g", []), checkIns: [{ date: "2026-11-01", note: "old", photo: "u/a.jpg" }, { date: "2026-11-02", note: "shipped auth", photo: "u/b.jpg" }] };
   const view = buildArcView(arc(track("t", [g])), "2026-11-02");
-  assert.deepEqual(view.tracks[0].goals[0].proof, { note: "shipped auth", link: null });
-  assert.equal(buildArcView(arc(track("t", [goal("g", ["2026-11-02"])])), "2026-11-02").tracks[0].goals[0].proof, null);
+  assert.deepEqual(view.tracks[0].proof, { photo: "u/b.jpg", note: "shipped auth", shared: true });
+  assert.equal(view.tracks[0].doneToday, true);
+  assert.equal(buildArcView(arc(track("t", [goal("g", ["2026-11-02"])])), "2026-11-02").tracks[0].proof, null);
+});
+
+test("a photo kept private is only in the owner's view", () => {
+  const g = { ...goal("g", []), checkIns: [{ date: "2026-11-02", note: null, photo: "u/b.jpg", photoPublic: false }] };
+  assert.deepEqual(buildArcView(arc(track("t", [g])), "2026-11-02").tracks[0].proof, { photo: "u/b.jpg", note: null, shared: false });
+  const others = buildArcView(arc(track("t", [g])), "2026-11-02", { publicOnly: true }).tracks[0];
+  assert.equal(others.proof, null);
+  assert.equal(others.doneToday, true);
+});
+
+const checkpoint = (id: string, doneOn: string | null) => ({ id, title: id, doneAt: doneOn ? new Date(`${doneOn}T12:00:00Z`) : null, doneOn });
+
+test("the active checkpoint is the first one in line that isn't finished", () => {
+  const t = { ...track("t", [goal("g", [])]), checkpoints: [checkpoint("arrays", "2026-11-01"), checkpoint("strings", null), checkpoint("trees", null)] };
+  const view = buildArcView(arc(t), "2026-11-02").tracks[0];
+  assert.deepEqual(view.active, { id: "strings", title: "strings", number: 2 });
+  assert.equal(view.complete, false);
+  assert.equal(buildArcView(arc(track("t", [goal("g", [])])), "2026-11-02").tracks[0].active, null);
+});
+
+test("a track with every checkpoint finished stops being due", () => {
+  const t = { ...track("t", [goal("g", ["2026-11-01", "2026-11-02"])]), checkpoints: [checkpoint("only", "2026-11-03")] };
+  const view = buildArcView(arc(t), "2026-11-06");
+  // Finished on the 3rd without a check-in that day: no miss then or after.
+  assert.deepEqual(view.days.map((d) => d.status), ["perfect", "perfect", "empty", "empty", "empty", "empty"]);
+  assert.deepEqual(view.streak, { current: 2, best: 2 });
+  assert.equal(view.survivor.alive, true);
+  assert.equal(view.tracks[0].complete, true);
+  assert.equal(view.tracks[0].dueToday, false);
+});
+
+test("a check-in on the day a track is finished still counts", () => {
+  const t = { ...track("t", [goal("g", ["2026-11-01", "2026-11-02"])]), checkpoints: [checkpoint("only", "2026-11-02")] };
+  const view = buildArcView(arc(t), "2026-11-03");
+  assert.deepEqual(view.days.map((d) => d.status), ["perfect", "perfect", "empty"]);
+  assert.equal(view.totalCheckIns, 2);
 });

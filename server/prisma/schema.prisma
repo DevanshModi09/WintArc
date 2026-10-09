@@ -61,6 +61,10 @@ model Reflection {
 
 // A track is one vertical inside an arc: "Web Dev", "DSA", "Badminton".
 // Private tracks are only ever shown to their owner.
+//
+// Each day a track runs, its task is whichever checkpoint is first in line and
+// not yet finished. Check-ins hang off a single Goal row per track, created
+// with it, which is what the streak maths counts.
 model Track {
   id        String   @id @default(cuid())
   arcId     String
@@ -91,6 +95,10 @@ model Checkpoint {
   track     Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
   title     String
   doneAt    DateTime?
+  // The owner's local date when it was finished, which is what decides the
+  // day a fully finished track stops being due.
+  doneOn    String?
+  checkIns  CheckIn[]
   // Where it sits in the track's list. The owner can drag them into any order.
   position  Int       @default(0)
   createdAt DateTime  @default(now())
@@ -132,7 +140,15 @@ model CheckIn {
   goalId    String
   goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
   date      String
-  // Optional proof of the work: a line about it and a link to it.
+  // The checkpoint the day's work went towards.
+  checkpointId String?
+  checkpoint   Checkpoint? @relation(fields: [checkpointId], references: [id], onDelete: SetNull)
+  // Proof of the work: the path of a photo in the "proofs" storage bucket,
+  // and optionally a line about it.
+  photo     String?
+  // Whether friends see the photo in their feed, or only its owner does. The
+  // check-in itself shows either way.
+  photoPublic Boolean @default(true)
   note      String?
   link      String?
   createdAt DateTime @default(now())
