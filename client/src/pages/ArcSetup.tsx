@@ -139,18 +139,35 @@ export function ArcSetup({ season, onCreated }: { season: Season; onCreated: (ar
 
 const PLEDGE = 'i will not back off'
 
+// What someone agrees to, a line at a time, before they see the pledge.
+const TERMS = [
+  "My arc starts today and runs until {ends}. I can't pause it or end it early.",
+  'Every day a track runs, I commit with a message and a photo of the work. No commit means the day is missed, and one missed day takes me off the board.',
+  "My tracks and their checkpoints are final. I can add more later, but I can't remove or change them.",
+  "I've planned for my worst week, not my best. I can keep this up when I'm tired, busy or not in the mood.",
+]
+
 type PledgeProps = { tracks: NewTrack[]; ends: string; onConfirm: () => void; onCancel: () => void }
 
-// The last step before an arc exists: what's being decided, a nudge to keep
-// it realistic, and a line to type out so nobody commits by accident.
+// The last thing before an arc exists, in two steps. First the terms, each
+// ticked off by hand. Then what's being decided, a nudge to keep it
+// realistic, and a line to type out so nobody commits by accident.
 function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
   const [typed, setTyped] = useState('')
   // Capitals and stray spaces don't matter; the words do.
   const matches = typed.trim().replace(/\s+/g, ' ').toLowerCase() === PLEDGE
 
+  // Two warnings, one after the other: first the terms, each ticked off by
+  // hand, then the plan itself and the line to type.
+  const [step, setStep] = useState<1 | 2>(1)
+  const [agreed, setAgreed] = useState<boolean[]>(TERMS.map(() => false))
+  const allAgreed = agreed.every(Boolean)
+
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (matches) onConfirm()
+    if (step === 1) {
+      if (allAgreed) setStep(2)
+    } else if (matches) onConfirm()
   }
 
   return (
@@ -173,101 +190,162 @@ function Pledge({ tracks, ends, onConfirm, onCancel }: PledgeProps) {
         aria-labelledby="pledge-title"
         className="card flex max-h-[92vh] w-full max-w-[460px] flex-col overflow-hidden shadow-2xl"
       >
-        <div className="space-y-5 overflow-y-auto p-7">
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent [&>svg]:size-4">
-              <Lock />
-            </span>
-            <h2 id="pledge-title" className="h2 text-xl">
-              There's no backing off
-            </h2>
-          </div>
+        {step === 1 && (
+          <>
+            <div className="space-y-5 overflow-y-auto p-7">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-danger/15 text-[18px] leading-none font-medium text-danger">
+                  !
+                </span>
+                <div>
+                  <div className="label text-[12px]">Step 1 of 2</div>
+                  <h2 id="pledge-title" className="h2 text-xl">
+                    Only start if you're serious
+                  </h2>
+                </div>
+              </div>
 
-          <p className="text-[15px] leading-relaxed text-muted">
-            This is what you're deciding from today until {ends}. Once it's created you can't end the arc or delete a
-            track, and every track's checkpoint list is final. You can add more tracks later.
-          </p>
+              <p className="text-[15px] leading-relaxed text-muted">
+                This isn't a to-do list you can quietly drop next week. Read each line, and tick it only if you mean it.
+              </p>
 
-          <section className="space-y-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="font-medium">Winter Arc</h3>
-              <span className="label">{weeklyPlan(tracks)} a week</span>
+              <ul className="space-y-2.5">
+                {TERMS.map((term, i) => (
+                  <li key={term}>
+                    <label
+                      className={`flex cursor-pointer gap-3 rounded-field border px-4 py-3 text-[14px] leading-relaxed transition ${
+                        agreed[i] ? 'border-accent bg-accent/10' : 'border-line hover:border-fg'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]"
+                        checked={agreed[i]}
+                        onChange={(e) => setAgreed(agreed.map((a, j) => (j === i ? e.target.checked : a)))}
+                      />
+                      <span>{term.replace('{ends}', ends)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="divide-y divide-line rounded-field border border-line text-[14px]">
-              {tracks.map((track, i) => (
-                <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5">
-                  <span className="flex-1 font-medium">{track.name.trim()}</span>
-                  <span className="label">
-                    {track.checkpoints.length === 0
-                      ? 'no checkpoints'
-                      : `${track.checkpoints.length} ${track.checkpoints.length === 1 ? 'checkpoint' : 'checkpoints'}`}
-                  </span>
-                  <span className="label w-full">{scheduleSummary(track)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
 
-          <p className="rounded-field border border-accent/40 bg-accent/10 px-4 py-3 text-[14px] leading-relaxed">
-            <span className="font-medium">Be honest with yourself.</span> Don't over-expect and don't set goals you
-            can't keep up on your worst week. A plan you actually finish beats an ambitious one you drop on day 9.
-          </p>
-
-          <dl className="grid grid-cols-2 gap-3 text-[14px]">
-            <div className="rounded-field bg-subtle px-4 py-3">
-              <dt className="label text-[12px]">You still can</dt>
-              <dd className="mt-1 font-medium">Add tracks, finish and reorder checkpoints</dd>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-subtle px-7 py-4">
+              <span className="label mr-auto">
+                {agreed.filter(Boolean).length} of {TERMS.length} ticked
+              </span>
+              <button type="button" className="btn-outline" onClick={onCancel}>
+                Not yet
+              </button>
+              <button className="btn disabled:opacity-40" disabled={!allAgreed}>
+                I'm serious
+              </button>
             </div>
-            <div className="rounded-field bg-subtle px-4 py-3">
-              <dt className="label text-[12px]">You no longer can</dt>
-              <dd className="mt-1 font-medium">Delete a track, or change its checkpoints</dd>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div className="space-y-5 overflow-y-auto p-7">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent [&>svg]:size-4">
+                  <Lock />
+                </span>
+                <div>
+                  <div className="label text-[12px]">Step 2 of 2</div>
+                  <h2 id="pledge-title" className="h2 text-xl">
+                    There's no backing off
+                  </h2>
+                </div>
+              </div>
+
+              <p className="text-[15px] leading-relaxed text-muted">
+                This is what you're deciding from today until {ends}. Once it's created you can't end the arc or delete a
+                track, and every track's checkpoint list is final. You can add more tracks later.
+              </p>
+
+              <section className="space-y-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="font-medium">Winter Arc</h3>
+                  <span className="label">{weeklyPlan(tracks)} a week</span>
+                </div>
+                <ul className="divide-y divide-line rounded-field border border-line text-[14px]">
+                  {tracks.map((track, i) => (
+                    <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5">
+                      <span className="flex-1 font-medium">{track.name.trim()}</span>
+                      <span className="label">
+                        {track.checkpoints.length === 0
+                          ? 'no checkpoints'
+                          : `${track.checkpoints.length} ${track.checkpoints.length === 1 ? 'checkpoint' : 'checkpoints'}`}
+                      </span>
+                      <span className="label w-full">{scheduleSummary(track)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <p className="rounded-field border border-accent/40 bg-accent/10 px-4 py-3 text-[14px] leading-relaxed">
+                <span className="font-medium">Be honest with yourself.</span> Don't over-expect and don't set goals you
+                can't keep up on your worst week. A plan you actually finish beats an ambitious one you drop on day 9.
+              </p>
+
+              <dl className="grid grid-cols-2 gap-3 text-[14px]">
+                <div className="rounded-field bg-subtle px-4 py-3">
+                  <dt className="label text-[12px]">You still can</dt>
+                  <dd className="mt-1 font-medium">Add tracks, finish and reorder checkpoints</dd>
+                </div>
+                <div className="rounded-field bg-subtle px-4 py-3">
+                  <dt className="label text-[12px]">You no longer can</dt>
+                  <dd className="mt-1 font-medium">Delete a track, or change its checkpoints</dd>
+                </div>
+              </dl>
+
+              <label className="block space-y-2">
+                <span className="label block">
+                  To confirm, type{' '}
+                  <span className="rounded-[6px] bg-subtle px-1.5 py-0.5 font-medium text-fg">{PLEDGE}</span>
+                </span>
+                <span className="relative block">
+                  <input
+                    autoFocus
+                    className={`input h-11 pr-10 ${matches ? 'border-accent focus:border-accent' : ''}`}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-label={`Type ${PLEDGE} to confirm`}
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                  />
+                  {matches && (
+                    <svg
+                      className="absolute top-1/2 right-3.5 -translate-y-1/2 text-accent"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  )}
+                </span>
+              </label>
             </div>
-          </dl>
 
-          <label className="block space-y-2">
-            <span className="label block">
-              To confirm, type{' '}
-              <span className="rounded-[6px] bg-subtle px-1.5 py-0.5 font-medium text-fg">{PLEDGE}</span>
-            </span>
-            <span className="relative block">
-              <input
-                autoFocus
-                className={`input h-11 pr-10 ${matches ? 'border-accent focus:border-accent' : ''}`}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                aria-label={`Type ${PLEDGE} to confirm`}
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-              />
-              {matches && (
-                <svg
-                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-accent"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              )}
-            </span>
-          </label>
-        </div>
-
-        <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-subtle px-7 py-4">
-          <button type="button" className="btn-outline" onClick={onCancel}>
-            Go back
-          </button>
-          <button className="btn disabled:opacity-40" disabled={!matches}>
-            Create my arc
-          </button>
-        </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-subtle px-7 py-4">
+              <button type="button" className="btn-outline" onClick={() => setStep(1)}>
+                Back
+              </button>
+              <button className="btn disabled:opacity-40" disabled={!matches}>
+                Create my arc
+              </button>
+            </div>
+          </>
+        )}
       </motion.form>
     </motion.div>
   )
