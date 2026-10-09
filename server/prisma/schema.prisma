@@ -17,6 +17,11 @@ model User {
   // A small JPEG the browser has already cropped and resized.
   avatar          Bytes?
   avatarUpdatedAt DateTime?
+  bio          String?
+  // Free-form tags like "rust" or "postgres", shown on the profile.
+  stack        String[] @default([])
+  location     String?
+  link         String?
   createdAt    DateTime @default(now())
   arcs         Arc[]
   sentRequests     Friendship[] @relation("requester")
@@ -46,10 +51,35 @@ model Track {
   arc       Arc      @relation(fields: [arcId], references: [id], onDelete: Cascade)
   name      String
   isPublic  Boolean  @default(true)
+  // The plan for this track: which weekdays it runs on (0 = Sunday) and how
+  // long a session is. Its goals only count on those days.
+  days      Int[]    @default([0, 1, 2, 3, 4, 5, 6])
+  minutes   Int      @default(60)
+  // "HH:MM" local time, and how many minutes before it to be reminded.
+  // Both only matter for the calendar export.
+  startTime String?
+  reminder  Int?
   createdAt DateTime @default(now())
   goals     Goal[]
+  checkpoints Checkpoint[]
 
   @@index([arcId])
+}
+
+// A one-off milestone inside a track: "finish arrays", "ship the auth flow".
+// Unlike goals these are ticked once and stay ticked, and the share of them
+// done is the track's completion percentage.
+model Checkpoint {
+  id        String    @id @default(cuid())
+  trackId   String
+  track     Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  title     String
+  doneAt    DateTime?
+  // Where it sits in the track's list. The owner can drag them into any order.
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([trackId])
 }
 
 model Goal {
@@ -61,8 +91,24 @@ model Goal {
   startsOn  String
   createdAt DateTime  @default(now())
   checkIns  CheckIn[]
+  subtasks  Subtask[]
 
   @@index([trackId])
+}
+
+// A mini task inside a goal. A goal with subtasks is done for the day once
+// every one of them is ticked.
+model Subtask {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title     String
+  // The last day it was ticked. Subtasks start fresh every day, so it only
+  // counts as done while this is today; the history lives in CheckIn.
+  doneOn    String?
+  createdAt DateTime @default(now())
+
+  @@index([goalId])
 }
 
 model CheckIn {

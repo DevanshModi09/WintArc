@@ -1,42 +1,53 @@
 import { Router } from "express";
 import { z } from "zod";
-import { currentArc } from "../arcs";
+import { allArcs, type currentArc, currentArcs } from "../arcs";
 import { parseToday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
-import { publicUserSelect, toPublicUser } from "../users";
-
+import { profileSelect, publicUserSelect, toPublicUser } from "../users";
 
 type Relation = "self" | "friends" | "incoming" | "outgoing" | "none";
 
-// The friendship row between two users, whichever of them sent the request.
-async function friendshipBetween(a: string, b: string) {
-  return prisma.friendship.findFirst({
-    where: {
-      OR: [
-        { requesterId: a, addresseeId: b },
-        { requesterId: b, addresseeId: a },
-      ],
-    },
-  });
-}
+const involving = (me: string, others: string[]) => ({
+  OR: [
+    { requesterId: me, addresseeId: { in: others } },
+    { requesterId: { in: others }, addresseeId: me },
+  ],
+});
 
-async function relationTo(me: string, other: string) {
-  if (me === other) return { relation: "self" as Relation, friendshipId: null };
-  const f = await friendshipBetween(me, other);
+type FriendshipRow = { id: string; requesterId: string; accepted: boolean };
+
+function describe(me: string, f: FriendshipRow | undefined) {
   let relation: Relation = "none";
   if (f?.accepted) relation = "friends";
   else if (f) relation = f.requesterId === me ? "outgoing" : "incoming";
   return { relation, friendshipId: f?.id ?? null };
 }
 
+// The friendship row between two users, whichever of them sent the request.
+async function friendshipBetween(a: string, b: string) {
+  return prisma.friendship.findFirst({ where: involving(a, [b]) });
+}
+
+async function relationTo(me: string, other: string) {
+  if (me === other) return { relation: "self" as Relation, friendshipId: null };
+  return describe(me, (await friendshipBetween(me, other)) ?? undefined);
+}
+
+type ArcRow = NonNullable<Awaited<ReturnType<typeof currentArc>>>;
+
 // What a friend sees of someone's arc in a list: headline numbers only.
-async function arcSummary(userId: string, today: string) {
-  const arc = await currentArc(userId);
+function arcSummary(arc: ArcRow | undefined, today: string) {
   if (!arc) return null;
   const { name, dayNumber, totalDays, startsIn, isOver, streak, level, xp, today: progress } = buildArcView(arc, today);
   return { name, dayNumber, totalDays, startsIn, isOver, streak, level, xp, today: progress };
+}
+
+// An arc that has been replaced by a newer one, as a single line of history.
+function pastArc(arc: ArcRow, today: string) {
+  const { id, name, startDate, endDate, streak, perfectDays, totalCheckIns, xp, level } = buildArcView(arc, today);
+  return { id, name, startDate, endDate, bestStreak: streak.best, perfectDays, totalCheckIns, xp, level: level.number };
 }
 
 export const socialRouter = Router();
@@ -55,8 +66,13 @@ socialRouter.get("/users", async (req, res) => {
     orderBy: { username: "asc" },
     take: 10,
   });
+  const me: string = res.locals.userId;
+  const friendships = await prisma.friendship.findMany({ where: involving(me, users.map((u) => u.id)) });
   res.json({
-    users: await Promise.all(users.map(async (u) => ({ ...toPublicUser(u), ...(await relationTo(res.locals.userId, u.id)) }))),
+    users: users.map((u) => ({
+      ...toPublicUser(u),
+      ...describe(me, friendships.find((f) => f.requesterId === u.id || f.addresseeId === u.id)),
+    })),
   });
 });
 
@@ -65,15 +81,16 @@ socialRouter.get("/users/:username", async (req, res) => {
   const today = parseToday(req.query.today);
   const user = await prisma.user.findUnique({
     where: { username: req.params.username.toLowerCase() },
-    select: { ...publicUserSelect, createdAt: true },
+    select: profileSelect,
   });
   if (!user) throw new HttpError(404, "User not found");
   const isSelf = user.id === res.locals.userId;
-  const arc = await currentArc(user.id);
+  const [arc, ...older] = await allArcs(user.id);
   res.json({
     user: toPublicUser(user),
     ...(await relationTo(res.locals.userId, user.id)),
     arc: arc ? buildArcView(arc, today, { publicOnly: !isSelf }) : null,
+    pastArcs: older.map((a) => pastArc(a, today)),
   });
 });
 
@@ -87,19 +104,20 @@ socialRouter.get("/friends", async (req, res) => {
   });
   const other = (f: (typeof rows)[number]) => (f.requesterId === me ? f.addressee : f.requester);
 
-  const friends = await Promise.all(
-    rows
-      .filter((f) => f.accepted)
-      .map(async (f) => ({
-        friendshipId: f.id,
-        user: toPublicUser(other(f)),
-        arc: await arcSummary(other(f).id, today),
-      })),
-  );
+  const accepted = rows.filter((f) => f.accepted);
+  const arcs = await currentArcs([me, ...accepted.map((f) => other(f).id)]);
+  const friends = accepted.map((f) => ({
+    friendshipId: f.id,
+    user: toPublicUser(other(f)),
+    arc: arcSummary(arcs.get(other(f).id), today),
+  }));
   friends.sort((a, b) => (b.arc?.streak.current ?? -1) - (a.arc?.streak.current ?? -1));
 
   const pending = rows.filter((f) => !f.accepted);
+  const self = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: publicUserSelect });
   res.json({
+    // Your own numbers, so the page can rank you against your friends.
+    me: { user: toPublicUser(self), arc: arcSummary(arcs.get(me), today) },
     friends,
     incoming: pending.filter((f) => f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: toPublicUser(f.requester) })),
     outgoing: pending.filter((f) => f.requesterId === me).map((f) => ({ friendshipId: f.id, user: toPublicUser(f.addressee) })),

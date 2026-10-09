@@ -1,4 +1,4 @@
-import { addDays, diffDays } from "./dates";
+import { addDays, diffDays, weekday } from "./dates";
 
 const XP_PER_CHECKIN = 10;
 const XP_PER_PERFECT_DAY = 20;
@@ -34,6 +34,19 @@ type GoalInput = {
   emoji: string | null;
   startsOn: string;
   checkIns: { date: string }[];
+  subtasks: { id: string; title: string; doneOn: string | null }[];
+};
+
+type TrackInput = {
+  id: string;
+  name: string;
+  isPublic: boolean;
+  days: number[];
+  minutes: number;
+  startTime: string | null;
+  reminder: number | null;
+  checkpoints: { id: string; title: string; doneAt: Date | null }[];
+  goals: GoalInput[];
 };
 
 type ArcInput = {
@@ -41,10 +54,16 @@ type ArcInput = {
   name: string;
   startDate: string;
   endDate: string;
-  tracks: { id: string; name: string; isPublic: boolean; goals: GoalInput[] }[];
+  tracks: TrackInput[];
 };
 
-type Goal = GoalInput & { done: Set<string> };
+// `days` is the track's schedule, copied down so a goal knows when it's due.
+type Goal = GoalInput & { done: Set<string>; days: number[] };
+
+// A goal only counts on the weekdays its track is scheduled for.
+function isDue(goal: Goal, date: string) {
+  return goal.startsOn <= date && goal.days.includes(weekday(date));
+}
 
 export type DayStatus = "perfect" | "partial" | "missed" | "empty";
 
@@ -63,10 +82,11 @@ function streaks(done: boolean[], pendingLast: boolean) {
   return { current, best };
 }
 
-// A day is "perfect" when every goal that existed that day was checked in.
+// A day is "perfect" when every goal due that day was checked in. Days with
+// nothing due (rest days) are "empty" and neither extend nor break a streak.
 function summarize(goals: Goal[], dates: string[], pendingLast: boolean) {
   const days = dates.map((date) => {
-    const active = goals.filter((g) => g.startsOn <= date);
+    const active = goals.filter((g) => isDue(g, date));
     const done = active.filter((g) => g.done.has(date)).length;
     let status: DayStatus = "missed";
     if (active.length === 0) status = "empty";
@@ -74,9 +94,10 @@ function summarize(goals: Goal[], dates: string[], pendingLast: boolean) {
     else if (done > 0) status = "partial";
     return { date, status, done, total: active.length };
   });
+  const due = days.filter((d) => d.status !== "empty");
   const streak = streaks(
-    days.map((d) => d.status === "perfect"),
-    pendingLast,
+    due.map((d) => d.status === "perfect"),
+    pendingLast && due.at(-1)?.date === dates.at(-1),
   );
   return { days, streak };
 }
@@ -91,9 +112,10 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
 
   const tracks = arc.tracks.map((t) => ({
     ...t,
-    goals: t.goals.map((g): Goal => ({ ...g, done: new Set(g.checkIns.map((c) => c.date)) })),
+    goals: t.goals.map((g): Goal => ({ ...g, days: t.days, done: new Set(g.checkIns.map((c) => c.date)) })),
   }));
   const allGoals = tracks.flatMap((t) => t.goals);
+  const dueToday = allGoals.filter((g) => isDue(g, today));
   const { days, streak } = summarize(allGoals, dates, todayInArc);
 
   const totalCheckIns = days.reduce((sum, d) => sum + d.done, 0);
@@ -119,8 +141,8 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
     perfectDays,
     totalCheckIns,
     today: {
-      done: allGoals.filter((g) => g.done.has(today)).length,
-      total: allGoals.length,
+      done: dueToday.filter((g) => g.done.has(today)).length,
+      total: dueToday.length,
     },
     xp,
     level: {
@@ -137,18 +159,26 @@ export function buildArcView(arc: ArcInput, today: string, opts: { publicOnly?: 
         id: t.id,
         name: t.name,
         isPublic: t.isPublic,
+        days: t.days,
+        minutes: t.minutes,
+        startTime: t.startTime,
+        reminder: t.reminder,
+        dueToday: t.days.includes(weekday(today)),
+        checkpoints: t.checkpoints.map((c) => ({ id: c.id, title: c.title, done: c.doneAt !== null })),
         streak: summarize(t.goals, dates, todayInArc).streak,
         goals: t.goals.map((g) => {
-          const goalDates = dates.filter((d) => d >= g.startsOn);
+          const goalDates = dates.filter((d) => isDue(g, d));
           return {
             id: g.id,
             title: g.title,
             emoji: g.emoji,
             doneToday: g.done.has(today),
+            // Subtasks reset every day: one ticked yesterday is open again.
+            subtasks: g.subtasks.map((s) => ({ id: s.id, title: s.title, done: s.doneOn === today })),
             total: goalDates.filter((d) => g.done.has(d)).length,
             streak: streaks(
               goalDates.map((d) => g.done.has(d)),
-              todayInArc,
+              todayInArc && goalDates.at(-1) === today,
             ),
           };
         }),

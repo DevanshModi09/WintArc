@@ -1,22 +1,48 @@
 import { Router } from "express";
 import { z } from "zod";
 import { currentArc } from "../arcs";
-import { ARC_DAYS, addDays, parseToday, seasonStart } from "../dates";
+import { ARC_DAYS, addDays, parseToday, seasonStart, weekday } from "../dates";
 import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
 
 const MAX_TRACKS = 8;
 const MAX_GOALS_PER_TRACK = 10;
+const MAX_SUBTASKS_PER_GOAL = 8;
+const MAX_CHECKPOINTS_PER_TRACK = 30;
+
+const subtaskTitle = z.string().trim().min(1, "A mini task can't be empty").max(60);
 
 const goalSchema = z.object({
   title: z.string().trim().min(1, "Goal can't be empty").max(80),
   emoji: z.string().trim().max(8).optional(),
+  subtasks: z.array(subtaskTitle).max(MAX_SUBTASKS_PER_GOAL).default([]),
 });
 
+// The shape Prisma wants for a new goal along with its subtasks.
+const newGoal = ({ subtasks, ...goal }: z.infer<typeof goalSchema>, startsOn: string) => ({
+  ...goal,
+  startsOn,
+  subtasks: { create: subtasks.map((title) => ({ title })) },
+});
+
+// Anything left out falls back to the column default, so the same schema
+// works for partial updates without resetting fields that weren't sent.
 const trackSchema = z.object({
   name: z.string().trim().min(1, "Give the track a name").max(40),
-  isPublic: z.boolean().default(true),
+  isPublic: z.boolean().optional(),
+  days: z
+    .array(z.number().int().min(0).max(6))
+    .min(1, "Pick at least one day")
+    .transform((days) => [...new Set(days)].sort())
+    .optional(),
+  minutes: z.number().int().min(15).max(720).optional(),
+  startTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Invalid start time")
+    .nullable()
+    .optional(),
+  reminder: z.number().int().min(0).max(1440).nullable().optional(),
 });
 
 const createArcSchema = z.object({
@@ -41,7 +67,7 @@ async function arcResponse(userId: string, today: string) {
 async function ownedTrack(userId: string, trackId: string) {
   const track = await prisma.track.findFirst({
     where: { id: trackId, arc: { userId } },
-    include: { arc: true, _count: { select: { goals: true } } },
+    include: { arc: true, _count: { select: { goals: true, checkpoints: true } } },
   });
   if (!track) throw new HttpError(404, "Track not found");
   return track;
@@ -50,10 +76,35 @@ async function ownedTrack(userId: string, trackId: string) {
 async function ownedGoal(userId: string, goalId: string) {
   const goal = await prisma.goal.findFirst({
     where: { id: goalId, track: { arc: { userId } } },
-    include: { track: { include: { arc: true } } },
+    include: { track: { include: { arc: true } }, subtasks: true },
   });
   if (!goal) throw new HttpError(404, "Goal not found");
   return goal;
+}
+
+type OwnedGoal = Awaited<ReturnType<typeof ownedGoal>>;
+
+// Check-ins are only ever for today, and only on a day the track runs.
+function assertCanCheckIn({ track }: OwnedGoal, today: string) {
+  const { arc } = track;
+  if (today < arc.startDate || today > arc.endDate) {
+    throw new HttpError(400, today < arc.startDate ? "Your arc hasn't started yet" : "This arc is over");
+  }
+  if (!track.days.includes(weekday(today))) {
+    throw new HttpError(400, "This track isn't scheduled for today");
+  }
+}
+
+async function setCheckIn(goalId: string, today: string, done: boolean) {
+  if (done) {
+    await prisma.checkIn.upsert({
+      where: { goalId_date: { goalId, date: today } },
+      create: { goalId, date: today },
+      update: {},
+    });
+  } else {
+    await prisma.checkIn.deleteMany({ where: { goalId, date: today } });
+  }
 }
 
 export const arcRouter = Router();
@@ -75,10 +126,9 @@ arcRouter.post("/arc", async (req, res) => {
       startDate,
       endDate: addDays(startDate, ARC_DAYS - 1),
       tracks: {
-        create: tracks.map((t) => ({
-          name: t.name,
-          isPublic: t.isPublic,
-          goals: { create: t.goals.map((g) => ({ ...g, startsOn })) },
+        create: tracks.map(({ goals, ...track }) => ({
+          ...track,
+          goals: { create: goals.map((g) => newGoal(g, startsOn)) },
         })),
       },
     },
@@ -106,6 +156,9 @@ arcRouter.patch("/tracks/:id", async (req, res) => {
   const today = parseToday(req.body?.today);
   const changes = trackSchema.partial().parse(req.body);
   const track = await ownedTrack(res.locals.userId, req.params.id);
+  // A reminder counts back from the start time, so it can't outlive it.
+  const startTime = changes.startTime === undefined ? track.startTime : changes.startTime;
+  if (startTime === null) changes.reminder = null;
   await prisma.track.update({ where: { id: track.id }, data: changes });
   res.json(await arcResponse(res.locals.userId, today));
 });
@@ -124,8 +177,16 @@ arcRouter.post("/goals", async (req, res) => {
   if (track._count.goals >= MAX_GOALS_PER_TRACK) {
     throw new HttpError(400, `A track can have up to ${MAX_GOALS_PER_TRACK} goals`);
   }
-  await prisma.goal.create({ data: { ...goal, trackId: track.id, startsOn: today } });
+  await prisma.goal.create({ data: { ...newGoal(goal, today), trackId: track.id } });
   res.status(201).json(await arcResponse(res.locals.userId, today));
+});
+
+arcRouter.patch("/goals/:id", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const changes = goalSchema.pick({ title: true }).parse(req.body);
+  const goal = await ownedGoal(res.locals.userId, req.params.id);
+  await prisma.goal.update({ where: { id: goal.id }, data: changes });
+  res.json(await arcResponse(res.locals.userId, today));
 });
 
 arcRouter.delete("/goals/:id", async (req, res) => {
@@ -135,23 +196,113 @@ arcRouter.delete("/goals/:id", async (req, res) => {
   res.json(await arcResponse(res.locals.userId, today));
 });
 
-// Check-ins are only ever for today: no backfilling missed days.
+// No backfilling missed days. Ticking a goal ticks its subtasks along with it.
 arcRouter.put("/goals/:id/checkin", async (req, res) => {
   const today = parseToday(req.body?.today);
   const { done } = checkInSchema.parse(req.body);
   const goal = await ownedGoal(res.locals.userId, req.params.id);
-  const { arc } = goal.track;
-  if (today < arc.startDate || today > arc.endDate) {
-    throw new HttpError(400, today < arc.startDate ? "Your arc hasn't started yet" : "This arc is over");
+  assertCanCheckIn(goal, today);
+  await setCheckIn(goal.id, today, done);
+  await prisma.subtask.updateMany({ where: { goalId: goal.id }, data: { doneOn: done ? today : null } });
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+async function ownedSubtask(userId: string, subtaskId: string) {
+  const subtask = await prisma.subtask.findFirst({
+    where: { id: subtaskId, goal: { track: { arc: { userId } } } },
+  });
+  if (!subtask) throw new HttpError(404, "Mini task not found");
+  return { subtask, goal: await ownedGoal(userId, subtask.goalId) };
+}
+
+arcRouter.post("/subtasks", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { goalId, title } = z.object({ goalId: z.string(), title: subtaskTitle }).parse(req.body);
+  const goal = await ownedGoal(res.locals.userId, goalId);
+  if (goal.subtasks.length >= MAX_SUBTASKS_PER_GOAL) {
+    throw new HttpError(400, `A goal can have up to ${MAX_SUBTASKS_PER_GOAL} mini tasks`);
   }
-  if (done) {
-    await prisma.checkIn.upsert({
-      where: { goalId_date: { goalId: goal.id, date: today } },
-      create: { goalId: goal.id, date: today },
-      update: {},
-    });
-  } else {
-    await prisma.checkIn.deleteMany({ where: { goalId: goal.id, date: today } });
+  // A goal already ticked today stays ticked, so the new subtask starts done.
+  const checkedIn = await prisma.checkIn.findUnique({ where: { goalId_date: { goalId: goal.id, date: today } } });
+  await prisma.subtask.create({ data: { goalId: goal.id, title, doneOn: checkedIn ? today : null } });
+  res.status(201).json(await arcResponse(res.locals.userId, today));
+});
+
+// The goal is done for the day exactly when every subtask is.
+arcRouter.put("/subtasks/:id/check", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { done } = checkInSchema.parse(req.body);
+  const { subtask, goal } = await ownedSubtask(res.locals.userId, req.params.id);
+  assertCanCheckIn(goal, today);
+  await prisma.subtask.update({ where: { id: subtask.id }, data: { doneOn: done ? today : null } });
+  const others = goal.subtasks.filter((s) => s.id !== subtask.id);
+  await setCheckIn(goal.id, today, done && others.every((s) => s.doneOn === today));
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+arcRouter.delete("/subtasks/:id", async (req, res) => {
+  const today = parseToday(req.query.today);
+  const { subtask, goal } = await ownedSubtask(res.locals.userId, req.params.id);
+  await prisma.subtask.delete({ where: { id: subtask.id } });
+  // Removing the last unticked one can finish the goal.
+  const left = goal.subtasks.filter((s) => s.id !== subtask.id);
+  const { arc, days } = goal.track;
+  const open = today >= arc.startDate && today <= arc.endDate && days.includes(weekday(today));
+  if (open && left.length > 0 && left.every((s) => s.doneOn === today)) await setCheckIn(goal.id, today, true);
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+const checkpointTitle = z.string().trim().min(1, "A checkpoint can't be empty").max(80);
+
+async function ownedCheckpoint(userId: string, checkpointId: string) {
+  const checkpoint = await prisma.checkpoint.findFirst({
+    where: { id: checkpointId, track: { arc: { userId } } },
+  });
+  if (!checkpoint) throw new HttpError(404, "Checkpoint not found");
+  return checkpoint;
+}
+
+arcRouter.post("/checkpoints", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { trackId, title } = z.object({ trackId: z.string(), title: checkpointTitle }).parse(req.body);
+  const track = await ownedTrack(res.locals.userId, trackId);
+  if (track._count.checkpoints >= MAX_CHECKPOINTS_PER_TRACK) {
+    throw new HttpError(400, `A track can have up to ${MAX_CHECKPOINTS_PER_TRACK} checkpoints`);
   }
+  // New ones go to the bottom of the list.
+  const last = await prisma.checkpoint.aggregate({ where: { trackId: track.id }, _max: { position: true } });
+  await prisma.checkpoint.create({ data: { trackId: track.id, title, position: (last._max.position ?? -1) + 1 } });
+  res.status(201).json(await arcResponse(res.locals.userId, today));
+});
+
+// Checkpoints aren't tied to a day: tick one whenever it's reached, and it
+// stays ticked until it's unticked.
+arcRouter.patch("/checkpoints/:id", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { title, done } = z.object({ title: checkpointTitle.optional(), done: z.boolean().optional() }).parse(req.body);
+  const checkpoint = await ownedCheckpoint(res.locals.userId, req.params.id);
+  // Ticking one that's already ticked keeps the original date.
+  const doneAt = done === undefined ? undefined : done ? (checkpoint.doneAt ?? new Date()) : null;
+  await prisma.checkpoint.update({ where: { id: checkpoint.id }, data: { title, doneAt } });
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+arcRouter.delete("/checkpoints/:id", async (req, res) => {
+  const today = parseToday(req.query.today);
+  const checkpoint = await ownedCheckpoint(res.locals.userId, req.params.id);
+  await prisma.checkpoint.delete({ where: { id: checkpoint.id } });
+  res.json(await arcResponse(res.locals.userId, today));
+});
+
+// Saves the order after a drag: every checkpoint id of the track, top to bottom.
+arcRouter.put("/tracks/:id/checkpoints/order", async (req, res) => {
+  const today = parseToday(req.body?.today);
+  const { ids } = z.object({ ids: z.array(z.string()).max(MAX_CHECKPOINTS_PER_TRACK) }).parse(req.body);
+  const track = await ownedTrack(res.locals.userId, req.params.id);
+  const existing = await prisma.checkpoint.findMany({ where: { trackId: track.id }, select: { id: true } });
+  const same = ids.length === existing.length && new Set(ids).size === ids.length && existing.every((c) => ids.includes(c.id));
+  // The list changed in another tab since this one loaded it.
+  if (!same) throw new HttpError(409, "Your checkpoints changed. Reload and try again.");
+  await prisma.$transaction(ids.map((id, position) => prisma.checkpoint.update({ where: { id }, data: { position } })));
   res.json(await arcResponse(res.locals.userId, today));
 });

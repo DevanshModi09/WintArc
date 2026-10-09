@@ -22,6 +22,11 @@ export function diffDays(from: string, to: string): number {
   return Math.round((toUtc(to).getTime() - toUtc(from).getTime()) / 86_400_000);
 }
 
+// 0 = Sunday, matching Date#getDay.
+export function weekday(date: string): number {
+  return toUtc(date).getUTCDay();
+}
+
 export const ARC_DAYS = 90;
 
 // Everyone's arc runs on the same calendar: 90 days from 1 November.
