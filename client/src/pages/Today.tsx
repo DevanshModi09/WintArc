@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, type Arc, type Goal, type Track } from '../api'
 import { Link } from 'react-router-dom'
 import { arcPhase, arcStats, trackProgress } from '../arcStats'
 import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Rewards, StatStrip } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
+import { Pencil, Rename } from '../components/Rename'
 import { scheduleSummary, weeklyPlan } from '../schedule'
 import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
@@ -166,7 +167,9 @@ export function Today() {
             <TrackCard
               key={track.id}
               track={track}
+              editable={!arc.isOver}
               canCheckIn={!arc.isOver && !notStarted}
+              run={run}
               checkIn={(goalId, done) => run(() => api.checkIn(goalId, done), withCheckIn(arc, goalId, done))}
               checkSubtask={(id, done) => run(() => api.checkSubtask(id, done), withSubtaskCheck(arc, id, done))}
             />
@@ -190,18 +193,42 @@ export function Today() {
 
 type TrackCardProps = {
   track: Track
+  editable: boolean
   canCheckIn: boolean
+  run: Run
   checkIn: (goalId: string, done: boolean) => void
   checkSubtask: (subtaskId: string, done: boolean) => void
 }
 
-// Today is only for ticking things off. Tracks are set up on the Tracks page.
-function TrackCard({ track, canCheckIn, checkIn, checkSubtask }: TrackCardProps) {
+// Daily goals are added, edited and ticked here. The track itself (name,
+// schedule, checkpoints) is set up on the Tracks page.
+function TrackCard({ track, editable, canCheckIn, run, checkIn, checkSubtask }: TrackCardProps) {
+  const [draft, setDraft] = useState('')
+  const [renaming, setRenaming] = useState<string>()
+  // The goal that has its "add a mini task" field open.
+  const [addingTo, setAddingTo] = useState<string>()
+  const [subDraft, setSubDraft] = useState('')
   // Off-days only matter once check-ins are open.
   const restDay = canCheckIn && !track.dueToday
   const progress = trackProgress(track)
   const locked = !canCheckIn || restDay
   const dim = restDay ? '' : 'disabled:opacity-100'
+
+  function addGoal(e: FormEvent) {
+    e.preventDefault()
+    const title = draft.trim()
+    if (!title) return
+    setDraft('')
+    run(() => api.addGoal(track.id, title))
+  }
+
+  function addSubtask(e: FormEvent, goalId: string) {
+    e.preventDefault()
+    const title = subDraft.trim()
+    if (!title) return setAddingTo(undefined)
+    setSubDraft('')
+    run(() => api.addSubtask(goalId, title))
+  }
 
   return (
     <section className="card">
@@ -219,47 +246,119 @@ function TrackCard({ track, canCheckIn, checkIn, checkSubtask }: TrackCardProps)
         <span className="label hidden sm:inline">{scheduleSummary(track)}</span>
       </div>
 
-      {track.goals.length === 0 && (
-        <p className="label px-4 py-3">
-          No daily goals yet.{' '}
-          <Link to="/tracks" className="text-fg hover:underline">
-            Add some in Tracks
-          </Link>
-          .
-        </p>
+      {track.goals.map((goal) =>
+        renaming === goal.id ? (
+          <div key={goal.id} className="flex min-h-11 items-center border-b border-line px-4">
+            <Rename
+              value={goal.title}
+              label="Goal"
+              maxLength={80}
+              onCancel={() => setRenaming(undefined)}
+              onSave={(title) => {
+                setRenaming(undefined)
+                run(() => api.renameGoal(goal.id, title))
+              }}
+            />
+          </div>
+        ) : (
+          <div key={goal.id} className="border-b border-line last:border-b-0">
+            <div className="flex items-center">
+              <button
+                className={`flex min-h-11 flex-1 items-center gap-3 px-4 text-left ${dim}`}
+                aria-pressed={goal.doneToday}
+                disabled={locked}
+                onClick={() => checkIn(goal.id, !goal.doneToday)}
+              >
+                <Checkbox checked={goal.doneToday} />
+                <span className={`flex-1 ${goal.doneToday ? 'text-muted line-through' : ''}`}>{goal.title}</span>
+                {goal.subtasks.length > 0 && (
+                  <span className="font-mono text-[13px] text-muted">
+                    {goal.subtasks.filter((s) => s.done).length}/{goal.subtasks.length}
+                  </span>
+                )}
+                <span className="font-mono text-[13px] text-muted">{goal.streak.current}d</span>
+              </button>
+              {editable && (
+                <>
+                  <button
+                    className="px-2 text-muted hover:text-fg"
+                    aria-label={`Add a mini task to ${goal.title}`}
+                    title="Add a mini task"
+                    aria-expanded={addingTo === goal.id}
+                    onClick={() => {
+                      setSubDraft('')
+                      setAddingTo(addingTo === goal.id ? undefined : goal.id)
+                    }}
+                  >
+                    +
+                  </button>
+                  <button className="px-2 text-muted hover:text-fg" aria-label={`Rename ${goal.title}`} onClick={() => setRenaming(goal.id)}>
+                    <Pencil />
+                  </button>
+                  <button
+                    className="py-2 pr-4 pl-2 text-muted hover:text-fg"
+                    aria-label={`Delete ${goal.title}`}
+                    onClick={() => run(() => api.deleteGoal(goal.id))}
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
+            </div>
+            {goal.subtasks.map((sub) => (
+              <div key={sub.id} className="flex items-center">
+                <button
+                  className={`flex min-h-9 flex-1 items-center gap-3 pr-4 pl-11 text-left text-[13px] ${dim}`}
+                  aria-pressed={sub.done}
+                  disabled={locked}
+                  onClick={() => checkSubtask(sub.id, !sub.done)}
+                >
+                  <Checkbox checked={sub.done} />
+                  <span className={sub.done ? 'text-muted line-through' : ''}>{sub.title}</span>
+                </button>
+                {editable && (
+                  <button
+                    className="py-1 pr-4 pl-2 text-[13px] text-muted hover:text-fg"
+                    aria-label={`Delete ${sub.title}`}
+                    onClick={() => run(() => api.deleteSubtask(sub.id))}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            {addingTo === goal.id && (
+              <form onSubmit={(e) => addSubtask(e, goal.id)} className="flex items-center gap-3 pr-4 pl-11">
+                <span className="w-4 text-center text-muted">+</span>
+                <input
+                  autoFocus
+                  className="h-9 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted"
+                  placeholder="Add a mini task, then press Enter"
+                  aria-label={`Mini task for ${goal.title}`}
+                  maxLength={60}
+                  value={subDraft}
+                  onChange={(e) => setSubDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Escape' && setAddingTo(undefined)}
+                />
+              </form>
+            )}
+          </div>
+        ),
       )}
 
-      {track.goals.map((goal) => (
-        <div key={goal.id} className="border-b border-line last:border-b-0">
-          <button
-            className={`flex min-h-11 w-full items-center gap-3 px-4 text-left ${dim}`}
-            aria-pressed={goal.doneToday}
-            disabled={locked}
-            onClick={() => checkIn(goal.id, !goal.doneToday)}
-          >
-            <Checkbox checked={goal.doneToday} />
-            <span className={`flex-1 ${goal.doneToday ? 'text-muted line-through' : ''}`}>{goal.title}</span>
-            {goal.subtasks.length > 0 && (
-              <span className="font-mono text-[13px] text-muted">
-                {goal.subtasks.filter((s) => s.done).length}/{goal.subtasks.length}
-              </span>
-            )}
-            <span className="font-mono text-[13px] text-muted">{goal.streak.current}d</span>
-          </button>
-          {goal.subtasks.map((sub) => (
-            <button
-              key={sub.id}
-              className={`flex min-h-9 w-full items-center gap-3 pr-4 pl-11 text-left text-[13px] ${dim}`}
-              aria-pressed={sub.done}
-              disabled={locked}
-              onClick={() => checkSubtask(sub.id, !sub.done)}
-            >
-              <Checkbox checked={sub.done} />
-              <span className={sub.done ? 'text-muted line-through' : ''}>{sub.title}</span>
-            </button>
-          ))}
-        </div>
-      ))}
+      {editable && (
+        <form onSubmit={addGoal} className="flex items-center gap-3 px-4">
+          <span className="w-4 text-center text-muted">+</span>
+          <input
+            className="h-11 flex-1 bg-transparent outline-none placeholder:text-muted"
+            placeholder="Add a daily goal"
+            aria-label={`Add a daily goal to ${track.name}`}
+            maxLength={80}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+        </form>
+      )}
     </section>
   )
 }

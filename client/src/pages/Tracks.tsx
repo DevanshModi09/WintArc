@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
 import { Checkbox, ErrorNote, Loading } from '../components/ArcParts'
+import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
 import { scheduleSummary } from '../schedule'
 import { useTitle } from '../useTitle'
@@ -25,8 +26,8 @@ const withOrder = (arc: Arc, trackId: string, ids: string[]): Arc => ({
   ),
 })
 
-// Where tracks are set up: their schedule, daily goals and mini tasks. It is
-// also the only place checkpoints are ticked. Today is just for check-ins.
+// Where tracks are set up (name, schedule, visibility) and the only place
+// checkpoints are ticked. Daily goals are added and ticked on Today.
 export function Tracks() {
   // undefined = still loading
   const [arc, setArc] = useState<Arc | null>()
@@ -83,8 +84,8 @@ export function Tracks() {
           {overall === null ? 'Tracks' : `${overall}% of checkpoints done`}
         </h1>
         <p className="mt-2 text-muted">
-          Set up each track here: when it runs, its daily goals and its checkpoints. Checkpoints are the milestones you
-          tick once, and they fill the track up. Daily goals are ticked on Today.
+          Set up each track here: its name, when it runs and its checkpoints. Checkpoints are the milestones you tick
+          once, and they fill the track up. Daily goals live on Today.
         </p>
       </header>
 
@@ -101,169 +102,6 @@ export function Tracks() {
         />
       ))}
       {!arc.isOver && <NewTrack run={run} />}
-    </div>
-  )
-}
-
-type RenameProps = { value: string; label: string; maxLength: number; onSave: (value: string) => void; onCancel: () => void }
-
-// A text field that saves on Enter or when you click away, and backs out on Escape.
-function Rename({ value, label, maxLength, onSave, onCancel }: RenameProps) {
-  const [draft, setDraft] = useState(value)
-  // Escape unmounts the field, which would otherwise fire its blur and save.
-  const cancelled = useRef(false)
-
-  function save() {
-    if (cancelled.current) return
-    const next = draft.trim()
-    if (next && next !== value) onSave(next)
-    else onCancel()
-  }
-
-  return (
-    <input
-      autoFocus
-      className="h-8 min-w-0 flex-1 rounded-xl border border-fg bg-transparent px-2 outline-none"
-      aria-label={label}
-      maxLength={maxLength}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={save}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') e.currentTarget.blur()
-        if (e.key === 'Escape') {
-          cancelled.current = true
-          onCancel()
-        }
-      }}
-    />
-  )
-}
-
-function Pencil() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  )
-}
-
-// A track's daily goals and their mini tasks. They're edited here and ticked on Today.
-function GoalList({ track, editable, run }: { track: Track; editable: boolean; run: Run }) {
-  const [draft, setDraft] = useState('')
-  const [renaming, setRenaming] = useState<string>()
-  // The goal that has its "add a mini task" field open.
-  const [addingTo, setAddingTo] = useState<string>()
-  const [subDraft, setSubDraft] = useState('')
-
-  function addGoal(e: FormEvent) {
-    e.preventDefault()
-    const title = draft.trim()
-    if (!title) return
-    setDraft('')
-    run(() => api.addGoal(track.id, title))
-  }
-
-  function addSubtask(e: FormEvent, goalId: string) {
-    e.preventDefault()
-    const title = subDraft.trim()
-    if (!title) return setAddingTo(undefined)
-    setSubDraft('')
-    run(() => api.addSubtask(goalId, title))
-  }
-
-  return (
-    <div className="border-b border-line">
-      <div className="label border-b border-line px-4 py-2 font-mono uppercase">Daily goals</div>
-      {track.goals.map((goal) => (
-        <div key={goal.id} className="border-b border-line">
-          <div className="flex min-h-11 items-center gap-1 pl-4">
-            {renaming === goal.id ? (
-              <Rename
-                value={goal.title}
-                label="Goal"
-                maxLength={80}
-                onCancel={() => setRenaming(undefined)}
-                onSave={(title) => {
-                  setRenaming(undefined)
-                  run(() => api.renameGoal(goal.id, title))
-                }}
-              />
-            ) : (
-              <span className="flex-1">{goal.title}</span>
-            )}
-            <span className="px-2 font-mono text-[13px] text-muted">{goal.streak.current}d</span>
-            {editable && (
-              <>
-                <button
-                  className="px-2 text-[13px] text-muted hover:text-fg"
-                  aria-expanded={addingTo === goal.id}
-                  onClick={() => {
-                    setSubDraft('')
-                    setAddingTo(addingTo === goal.id ? undefined : goal.id)
-                  }}
-                >
-                  + mini task
-                </button>
-                <button className="px-2 text-muted hover:text-fg" aria-label={`Rename ${goal.title}`} onClick={() => setRenaming(goal.id)}>
-                  <Pencil />
-                </button>
-                <button
-                  className="py-2 pr-4 pl-2 text-muted hover:text-fg"
-                  aria-label={`Delete ${goal.title}`}
-                  onClick={() => run(() => api.deleteGoal(goal.id))}
-                >
-                  ✕
-                </button>
-              </>
-            )}
-          </div>
-          {goal.subtasks.map((sub) => (
-            <div key={sub.id} className="flex min-h-9 items-center gap-3 pl-8 text-[13px]">
-              <span className="text-muted">–</span>
-              <span className="flex-1">{sub.title}</span>
-              {editable && (
-                <button
-                  className="py-1 pr-4 pl-2 text-muted hover:text-fg"
-                  aria-label={`Delete ${sub.title}`}
-                  onClick={() => run(() => api.deleteSubtask(sub.id))}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-          {addingTo === goal.id && (
-            <form onSubmit={(e) => addSubtask(e, goal.id)} className="flex items-center gap-3 pr-4 pl-8">
-              <span className="text-muted">+</span>
-              <input
-                autoFocus
-                className="h-9 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted"
-                placeholder="Add a mini task, then press Enter"
-                aria-label={`Mini task for ${goal.title}`}
-                maxLength={60}
-                value={subDraft}
-                onChange={(e) => setSubDraft(e.target.value)}
-                onKeyDown={(e) => e.key === 'Escape' && setAddingTo(undefined)}
-              />
-            </form>
-          )}
-        </div>
-      ))}
-      {editable && (
-        <form onSubmit={addGoal} className="flex items-center gap-3 px-4">
-          <span className="w-4 text-center text-muted">+</span>
-          <input
-            className="h-11 flex-1 bg-transparent outline-none placeholder:text-muted"
-            placeholder="Add a daily goal, then press Enter"
-            aria-label={`Add a daily goal to ${track.name}`}
-            maxLength={80}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-        </form>
-      )}
     </div>
   )
 }
@@ -450,9 +288,6 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
         <SchedulePicker value={track} onChange={(changes) => run(() => api.updateTrack(track.id, changes))} />
       )}
 
-      <GoalList track={track} editable={editable} run={run} />
-
-      <div className="label border-b border-line px-4 py-2 font-mono uppercase">Checkpoints</div>
       {shown.map((checkpoint) => (
         <div
           key={checkpoint.id}
