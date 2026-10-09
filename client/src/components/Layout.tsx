@@ -22,7 +22,7 @@ export function Layout({ user }: { user: User }) {
 
   return (
     <>
-      <nav className="mx-4 mt-6 flex min-h-14 max-w-[1040px] flex-wrap items-center gap-x-6 gap-y-2 rounded-[28px] bg-surface px-6 py-2 shadow-nav sm:mx-8 lg:rounded-full xl:mx-auto">
+      <nav className="mx-4 mt-6 flex min-h-14 max-w-[1040px] flex-wrap items-center gap-x-6 gap-y-2 rounded-[min(var(--radius-nav),28px)] bg-surface px-6 py-2 shadow-nav sm:mx-8 lg:rounded-nav xl:mx-auto">
         <Link to="/">
           <Logo />
         </Link>

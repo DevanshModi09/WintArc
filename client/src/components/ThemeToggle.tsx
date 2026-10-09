@@ -1,18 +1,25 @@
 import { useState } from 'react'
-import { currentTheme, setTheme } from '../theme'
+import { Link } from 'react-router-dom'
+import { currentTheme, oppositeMode, setTheme } from '../themes'
 
+// A light/dark switch, and the way in to the full theme picker.
 export function ThemeToggle({ className = '' }: { className?: string }) {
-  const [theme, setThemeState] = useState(currentTheme)
+  const [theme, setCurrent] = useState(currentTheme)
 
   function toggle() {
-    const next = theme === 'dark' ? 'light' : 'dark'
+    const next = oppositeMode(theme)
     setTheme(next)
-    setThemeState(next)
+    setCurrent(next)
   }
 
   return (
-    <button className={`text-muted hover:text-fg ${className}`} onClick={toggle}>
-      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-    </button>
+    <span className={`flex items-center gap-4 ${className}`}>
+      <button className="text-muted hover:text-fg" onClick={toggle}>
+        {theme.scheme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
+      <Link to="/themes" className="text-muted hover:text-fg">
+        Themes
+      </Link>
+    </span>
   )
 }

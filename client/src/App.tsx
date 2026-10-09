@@ -12,6 +12,7 @@ import { Onboarding } from './pages/Onboarding'
 import { Profile } from './pages/Profile'
 import { Today } from './pages/Today'
 import { Tracks } from './pages/Tracks'
+import { Themes } from './pages/Themes'
 import { Wrapped } from './pages/Wrapped'
 import { supabase } from './supabase'
 
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/signup" element={<AuthPage mode="signup" />} />
           <Route path="/c/:username" element={<Commitment />} />
+          <Route path="/themes" element={<Themes />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       )}
@@ -73,6 +75,7 @@ function SignedIn() {
   return (
     <Routes>
       <Route path="c/:username" element={<Commitment signedIn />} />
+      <Route path="themes" element={<Themes />} />
       <Route element={<Layout user={user} />}>
         <Route index element={<Today user={user} onUser={(next) => setMe({ ...me, user: next })} />} />
         <Route path="board" element={<Board />} />

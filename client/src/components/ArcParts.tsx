@@ -31,7 +31,7 @@ export function Avatar({ user: { name, avatarUrl }, size = 'sm' }: AvatarProps) 
 export function Checkbox({ checked }: { checked: boolean }) {
   return (
     <span
-      className={`flex size-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] ${
+      className={`flex size-[18px] shrink-0 items-center justify-center rounded-check border-[1.5px] ${
         checked ? 'border-fg bg-fg text-bg' : 'border-muted'
       }`}
     >
@@ -44,16 +44,17 @@ export function Checkbox({ checked }: { checked: boolean }) {
   )
 }
 
-export function StatStrip({ stats }: { stats: { label: string; value: ReactNode }[] }) {
+// A few headline numbers in one small block, to sit beside a page title.
+export function StatLine({ stats }: { stats: { label: string; value: ReactNode }[] }) {
   return (
-    <div className="card grid grid-cols-2 overflow-hidden sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))]">
+    <dl className="card inline-flex divide-x divide-line overflow-hidden">
       {stats.map((s) => (
-        <div key={s.label} className="-mr-px -mb-px border-r border-b border-line p-5">
-          <div className="label">{s.label}</div>
-          <div className="mt-1.5 text-[32px] leading-none font-medium tracking-[-0.02em]">{s.value}</div>
+        <div key={s.label} className="flex flex-col-reverse gap-1 px-5 py-3">
+          <dd className="text-xl leading-none font-medium whitespace-nowrap">{s.value}</dd>
+          <dt className="label leading-none">{s.label}</dt>
         </div>
       ))}
-    </div>
+    </dl>
   )
 }
 
@@ -80,7 +81,7 @@ export function ActivityGrid({ arc }: { arc: Arc }) {
             <div
               key={i}
               title={day ? `${day.date}: ${day.status}` : `Day ${i + 1}`}
-              className={`aspect-square rounded-full ${color}`}
+              className={`aspect-square rounded-cell ${color}`}
             />
           )
         })}

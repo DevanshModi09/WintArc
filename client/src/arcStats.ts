@@ -1,12 +1,11 @@
 import type { Arc, ArcSummary, Track } from './api'
 
-// The four headline numbers shown on both the Today and Profile pages.
+// The headline numbers shown beside the title on the Today and Profile pages.
 export function arcStats(arc: Arc) {
   return [
-    { label: 'Current streak', value: `${arc.streak.current}d` },
-    { label: 'Best streak', value: `${arc.streak.best}d` },
+    { label: 'Streak', value: `${arc.streak.current} ${arc.streak.current === 1 ? 'day' : 'days'}` },
     { label: 'Level', value: arc.level.number },
-    { label: 'Total XP', value: arc.xp.toLocaleString() },
+    { label: 'XP', value: arc.xp.toLocaleString() },
   ]
 }
 

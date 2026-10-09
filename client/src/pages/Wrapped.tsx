@@ -173,7 +173,7 @@ export function Wrapped({ user }: { user: User }) {
         </div>
         <div className="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-[3px]">
           {Array.from({ length: arc.totalDays }, (_, i) => (
-            <div key={i} className={`aspect-square rounded-full ${CELL[(i < card.days && arc.days[i]?.status) || 'empty']}`} />
+            <div key={i} className={`aspect-square rounded-cell ${CELL[(i < card.days && arc.days[i]?.status) || 'empty']}`} />
           ))}
         </div>
         <div className="grid grid-cols-3 gap-x-4 gap-y-6">

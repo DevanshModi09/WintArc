@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, today, type Arc, type Goal, type Proof, type Track, type User } from '../api'
 import { Link } from 'react-router-dom'
 import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
-import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Lock, Rewards, StatStrip } from '../components/ArcParts'
+import { ActivityGrid, Checkbox, ErrorNote, LevelBar, Loading, Lock, Rewards, StatLine } from '../components/ArcParts'
 import { downloadCalendar } from '../calendar'
 import { Pencil, Rename } from '../components/Rename'
 import { scheduleSummary, weeklyPlan } from '../schedule'
@@ -107,7 +107,8 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               </>
             )}
           </div>
-          <h1 className="mt-3 text-[40px] leading-none font-medium">
+          <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
+            <h1 className="text-[40px] leading-none font-medium">
             {arc.isOver
               ? `Finished with ${arc.perfectDays} perfect days`
               : notStarted
@@ -119,7 +120,9 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
                   : arc.today.done === arc.today.total && arc.today.total > 0
                     ? 'Day locked in'
                     : `${arc.today.done} of ${arc.today.total} done today`}
-          </h1>
+            </h1>
+            <StatLine stats={arcStats(arc)} />
+          </div>
         </div>
         {arc.isOver ? (
           <div className="flex items-center gap-2">
@@ -163,7 +166,6 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
       </header>
 
       <ErrorNote message={error} />
-      <StatStrip stats={arcStats(arc)} />
 
       <div className="flex flex-wrap items-start gap-8">
         <div className="min-w-0 flex-[999_1_420px] space-y-4">

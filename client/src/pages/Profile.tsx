@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { api, type PastArc, type ProfileEdit, type ProfileUser, type Profile as ProfileData } from '../api'
 import { arcPhase, arcStats, trackProgress } from '../arcStats'
 import { toAvatarDataUrl } from '../avatar'
-import { ActivityGrid, Avatar, Checkbox, ErrorNote, Loading, Rewards, StatStrip } from '../components/ArcParts'
+import { ActivityGrid, Avatar, Checkbox, ErrorNote, Loading, Rewards, StatLine } from '../components/ArcParts'
 import { downloadFile } from '../download'
 import { scheduleSummary } from '../schedule'
 import { supabase } from '../supabase'
@@ -75,7 +75,10 @@ function ProfileView({ username }: { username: string }) {
           <Avatar user={user} size="lg" />
         )}
         <div className="min-w-48 flex-1">
-          <h1 className="text-[40px] leading-none font-medium">{user.name}</h1>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <h1 className="text-[40px] leading-none font-medium">{user.name}</h1>
+            {arc && <StatLine stats={arcStats(arc)} />}
+          </div>
           <div className="mt-1 font-mono text-muted">
             @{user.username}
             {arc && ` · ${arc.name} · ${arcPhase(arc)}`}
@@ -147,7 +150,6 @@ function ProfileView({ username }: { username: string }) {
         <p className="text-muted">{isSelf ? "You haven't" : `${user.name} hasn't`} started an arc yet.</p>
       ) : (
         <>
-          <StatStrip stats={arcStats(arc)} />
           <div className="flex flex-wrap items-start gap-8">
             <div className="min-w-0 flex-[999_1_420px] space-y-4">
               <h2 className="h2">{isSelf ? 'Your tracks' : 'Public tracks'}</h2>
