@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type Arc, type Track } from '../api'
+import { api, today, type Arc, type Track } from '../api'
 import { trackProgress } from '../arcStats'
 import { Checkbox, ErrorNote, Loading } from '../components/ArcParts'
 import { CheckpointList, CheckpointWarning } from '../components/CheckpointList'
@@ -8,7 +8,7 @@ import { CommitLog } from '../components/CommitLog'
 import { ProgressBar, Rise } from '../components/Motion'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
-import { scheduleSummary, sessionCount } from '../schedule'
+import { scheduleSummary, sessionCount, sessionsLeft } from '../schedule'
 import { useTitle } from '../useTitle'
 
 // `optimistic` is shown straight away, so ticking doesn't wait on the network.
@@ -108,6 +108,7 @@ export function Tracks() {
         <Rise key={track.id} index={i}>
           <TrackProgress
             track={track}
+            left={sessionsLeft(track, arc, today())}
             editable={!arc.isOver}
             run={run}
             tick={(id, done) => run(() => api.tickCheckpoint(id, done), withCheckpoint(arc, id, done))}
@@ -186,6 +187,8 @@ function NewTrack({ run }: { run: Run }) {
 
 type TrackProgressProps = {
   track: Track
+  // Scheduled sessions still to come in this arc.
+  left: number
   editable: boolean
   run: Run
   tick: (id: string, done: boolean) => void
@@ -211,7 +214,7 @@ const move = (ids: string[], from: number, to: number) => {
   return next
 }
 
-function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressProps) {
+function TrackProgress({ track, left, editable, run, tick, reorder }: TrackProgressProps) {
   const [renaming, setRenaming] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(false)
   // While a checkpoint is being dragged: its id, and the order shown so far.
@@ -295,7 +298,7 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
             ? 'This track was created without checkpoints.'
             : `${done} of ${track.checkpoints.length} checkpoints done`}
           {' · '}
-          {sessionCount(track.total)}
+          {sessionCount(track.total, left)}
         </p>
       </div>
 

@@ -8,7 +8,7 @@ import { DeviceSettings } from '../components/DeviceSettings'
 import { Rise } from '../components/Motion'
 import { ProofPhoto } from '../components/ProofPhoto'
 import { uploadProof } from '../proof'
-import { nextDay, scheduleSummary, sessionCount, weeklyPlan } from '../schedule'
+import { nextDay, scheduleSummary, sessionCount, sessionsLeft, weeklyPlan } from '../schedule'
 import { weekdayToday } from '../today'
 import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
@@ -157,7 +157,7 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
           </div>
           {cards.map((track, i) => (
             <Rise key={track.id} index={i}>
-              <TrackCard track={track} open={open} run={run} />
+              <TrackCard track={track} left={sessionsLeft(track, arc, today())} open={open} run={run} />
             </Rise>
           ))}
           {resting.length > 0 && <RestingTracks tracks={resting} />}
@@ -346,7 +346,7 @@ function RestingTracks({ tracks }: { tracks: Track[] }) {
 // be picked with the button or dropped anywhere on the card, before or after
 // the message is written. Nothing is committed until Commit is pressed, and
 // that needs both.
-function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run }) {
+function TrackCard({ track, left, open, run }: { track: Track; left: number; open: boolean; run: Run }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -445,8 +445,11 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
             {progress}%
           </Link>
         )}
-        <span className="font-mono text-[13px] text-muted" title="Days you've committed on this track">
-          {sessionCount(track.total)}
+        <span
+          className="font-mono text-[13px] text-muted"
+          title="Days you've committed on this track, and scheduled days still to come in this arc"
+        >
+          {sessionCount(track.total, left)}
         </span>
         <span className="font-mono text-[13px] text-muted">{track.streak.current}d streak</span>
         <span className="label hidden sm:inline">{scheduleSummary(track)}</span>

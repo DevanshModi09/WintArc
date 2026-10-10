@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { dayPlan, formatClock, formatDuration, formatTime, nextDay, scheduleSummary, weeklyPlan } from './schedule'
+import { dayPlan, formatClock, formatDuration, formatTime, nextDay, scheduleSummary, sessionsLeft, weeklyPlan } from './schedule'
 
 const schedule = { days: [1, 3, 5], minutes: 90, startTime: '19:00', reminder: 10 }
 
@@ -75,4 +75,22 @@ test('nextDay names the next day a track is on', () => {
   assert.equal(nextDay([1, 3, 5], 6), 'Monday')
   assert.equal(nextDay([5], 6), 'Friday')
   assert.equal(nextDay([], 6), null)
+})
+
+test('sessionsLeft counts the scheduled days still to come', () => {
+  // 2026-10-10 is a Saturday. The arc runs Sat 10 Oct to Fri 23 Oct.
+  const arc = { startDate: '2026-10-10', endDate: '2026-10-23' }
+  const track = { days: [1, 3, 5], doneToday: false, complete: false }
+  // Mon Wed Fri, two weeks.
+  assert.equal(sessionsLeft(track, arc, '2026-10-10'), 6)
+  // On a Monday, today's still counts until it's committed.
+  assert.equal(sessionsLeft(track, arc, '2026-10-12'), 6)
+  assert.equal(sessionsLeft({ ...track, doneToday: true }, arc, '2026-10-12'), 5)
+  // The last day, then after the arc.
+  assert.equal(sessionsLeft(track, arc, '2026-10-23'), 1)
+  assert.equal(sessionsLeft(track, arc, '2026-10-24'), 0)
+  // Before the arc starts, every session is still ahead.
+  assert.equal(sessionsLeft(track, arc, '2026-10-01'), 6)
+  assert.equal(sessionsLeft({ ...track, complete: true }, arc, '2026-10-12'), 0)
+  assert.equal(sessionsLeft({ ...track, days: [0, 1, 2, 3, 4, 5, 6] }, arc, '2026-10-10'), 14)
 })

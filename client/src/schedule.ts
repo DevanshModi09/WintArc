@@ -1,4 +1,4 @@
-import type { Schedule } from './api'
+import type { Arc, Schedule, Track } from './api'
 
 // Indexed like Date#getDay: 0 = Sunday.
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -50,8 +50,29 @@ export function scheduleSummary({ days, minutes, startTime }: Schedule) {
   return [formatDays(days), formatDuration(minutes), startTime && formatTime(startTime)].filter(Boolean).join(' · ')
 }
 
-// How many sessions a track has had: "1 session", "12 sessions".
-export const sessionCount = (total: number) => `${total} ${total === 1 ? 'session' : 'sessions'}`
+// How many sessions a track still has ahead of it: the days it's scheduled
+// for from today to the end of the arc, less today's once that's committed.
+// A track with every checkpoint finished has none.
+export function sessionsLeft(
+  track: Pick<Track, 'days' | 'doneToday' | 'complete'>,
+  arc: Pick<Arc, 'startDate' | 'endDate'>,
+  today: string,
+) {
+  if (track.complete) return 0
+  const [y, m, d] = (today > arc.startDate ? today : arc.startDate).split('-').map(Number)
+  const [ey, em, ed] = arc.endDate.split('-').map(Number)
+  const end = new Date(ey, em - 1, ed)
+  let left = 0
+  for (const day = new Date(y, m - 1, d); day <= end; day.setDate(day.getDate() + 1)) {
+    if (track.days.includes(day.getDay())) left++
+  }
+  const todayCounted = today >= arc.startDate && today <= arc.endDate && track.days.includes(new Date(y, m - 1, d).getDay())
+  return todayCounted && track.doneToday ? left - 1 : left
+}
+
+// A track's sessions, had and still to come: "12 sessions done · 30 left".
+export const sessionCount = (done: number, left: number) =>
+  `${done} ${done === 1 ? 'session' : 'sessions'} done · ${left} left`
 
 // When a track that's off today is next on: "tomorrow", or the weekday's name.
 export function nextDay(days: number[], weekday: number) {
