@@ -343,15 +343,18 @@ function RestingTracks({ tracks }: { tracks: Track[] }) {
 // One track for today. The task is whichever checkpoint the track is up to:
 // commit with a message saying what you did and a photo of the work, and
 // finish the checkpoint when it's done to move on to the next. The photo can
-// be picked with the button or dropped anywhere on the card.
+// be picked with the button or dropped anywhere on the card, before or after
+// the message is written. Nothing is committed until Commit is pressed, and
+// that needs both.
 function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
   // A photo is being dragged over the card.
   const [dragging, setDragging] = useState(false)
-  // A photo was dropped before there was a message to commit it with.
-  const [needsMessage, setNeedsMessage] = useState(false)
+  // The photo picked for today's commit. It waits here, not yet uploaded,
+  // until Commit is pressed.
+  const [staged, setStaged] = useState<{ file: File; preview: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const noteInput = useRef<HTMLInputElement>(null)
   const progress = trackProgress(track)
@@ -363,20 +366,47 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
   // The card takes a photo whenever it's showing a button that would.
   const takesPhoto = open && (track.doneToday && track.proof ? true : track.dueToday)
 
+  function stage(file: File | null) {
+    if (staged) URL.revokeObjectURL(staged.preview)
+    setStaged(file && { file, preview: URL.createObjectURL(file) })
+  }
+
   async function commit(file: File) {
     setBusy(true)
-    await run(async () =>
-      api.checkIn(track.id, { photo: await uploadProof(file), note: message }),
-    )
-    setNote('')
+    let committed = false
+    await run(async () => {
+      const res = await api.checkIn(track.id, { photo: await uploadProof(file), note: message })
+      committed = true
+      return res
+    })
+    // A failed commit keeps the message and photo so it can be tried again.
+    if (committed) {
+      setNote('')
+      stage(null)
+    }
     setBusy(false)
+  }
+
+  // A new photo waits for Commit. Replacing the photo on a commit that's
+  // already made goes straight through.
+  function takePhoto(file: File) {
+    if (track.doneToday && track.proof) commit(file)
+    else {
+      stage(file)
+      if (!message) noteInput.current?.focus()
+    }
   }
 
   function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     // Clear the input so picking the same file again still fires a change.
     e.target.value = ''
-    if (file) commit(file)
+    if (file) takePhoto(file)
+  }
+
+  function commitStaged(e: FormEvent) {
+    e.preventDefault()
+    if (staged && message && !busy) commit(staged.file)
   }
 
   const carriesFiles = (e: DragEvent) => takesPhoto && e.dataTransfer.types.includes('Files')
@@ -393,13 +423,7 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
     e.preventDefault()
     setDragging(false)
     const file = [...e.dataTransfer.files].find((f) => f.type.startsWith('image/'))
-    if (!file || busy) return
-    if (!message) {
-      setNeedsMessage(true)
-      noteInput.current?.focus()
-      return
-    }
-    commit(file)
+    if (file && !busy) takePhoto(file)
   }
 
   let kicker = "Today's session"
@@ -453,7 +477,22 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
         ) : !open ? null : !track.dueToday ? (
           <p className="label">{track.complete ? 'Nothing more to do on this track.' : 'Not scheduled today. Rest up.'}</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <form className="flex flex-wrap items-center gap-2" onSubmit={commitStaged}>
+            {staged && (
+              <div className="flex w-full items-center gap-3">
+                <img src={staged.preview} alt="Photo waiting to be committed" className="size-20 rounded-field object-cover" />
+                <div className="min-w-0 flex-1">
+                  <div className="label">Photo ready</div>
+                  <p className="mt-0.5 text-[14px]">{message ? 'Press Commit to post it.' : 'Write a commit message to post it.'}</p>
+                </div>
+                <button type="button" className="label hover:text-fg" disabled={busy} onClick={() => fileInput.current?.click()}>
+                  {dragging ? 'Drop to change' : 'Change photo'}
+                </button>
+                <button type="button" className="label hover:text-fg" disabled={busy} onClick={() => stage(null)}>
+                  Remove
+                </button>
+              </div>
+            )}
             <input
               ref={noteInput}
               className="input min-w-48 flex-1"
@@ -462,29 +501,22 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
               required
               maxLength={200}
               value={note}
-              onChange={(e) => {
-                setNote(e.target.value)
-                setNeedsMessage(false)
-              }}
+              onChange={(e) => setNote(e.target.value)}
             />
-            <button
-              className="btn"
-              disabled={busy || !message}
-              title={message ? undefined : 'Write a commit message first'}
-              onClick={() => fileInput.current?.click()}
-            >
-              {busy ? 'Uploading…' : dragging ? 'Drop to commit' : 'Add photo and commit'}
-            </button>
-            {needsMessage && !message && (
-              <p className="w-full text-[13px] text-danger" role="alert">
-                Write a commit message first, then drop the photo again.
-              </p>
+            {staged ? (
+              <button className="btn" disabled={busy || !message} title={message ? undefined : 'Write a commit message first'}>
+                {busy ? 'Uploading…' : 'Commit'}
+              </button>
+            ) : (
+              <button type="button" className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>
+                {dragging ? 'Drop to add' : 'Add photo'}
+              </button>
             )}
             <p className="label w-full">
               Friends see your message. The photo stays private: it's your proof, and only you can see it. You can also drop
               a photo anywhere on this card.
             </p>
-          </div>
+          </form>
         )}
       </div>
 
