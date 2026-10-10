@@ -145,6 +145,7 @@ authRouter.delete("/account", async (req, res) => {
   const { username } = z.object({ username: z.string().trim().toLowerCase() }).parse(req.body);
   const { count } = await prisma.user.deleteMany({ where: { id: res.locals.authId, username } });
   if (count === 0) throw new HttpError(400, "That isn't your username");
+  await prisma.log.deleteMany({ where: { userId: res.locals.authId } });
   await deleteAuthUser(res.locals.authId);
   res.json({ ok: true });
 });

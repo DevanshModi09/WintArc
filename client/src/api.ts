@@ -1,3 +1,4 @@
+import { report } from './log'
 import { supabase } from './supabase'
 import { today } from './today'
 
@@ -159,6 +160,30 @@ export type AdminUserRow = {
   lastCheckIn: string | null
 }
 
+// One entry in the log: an API request, something a browser reported, or
+// something the server did on its own.
+export type AdminLog = {
+  id: string
+  at: string
+  source: 'request' | 'client' | 'server'
+  level: 'info' | 'warn' | 'error'
+  event: string
+  message: string | null
+  // Null for someone signed out, or signed in but without a profile yet.
+  user: PublicUser | null
+  signedIn: boolean
+  method: string | null
+  path: string | null
+  status: number | null
+  ms: number | null
+  host: string | null
+  userAgent: string | null
+  ip: string | null
+  detail: Record<string, unknown> | null
+}
+
+export type AdminLogFilter = { level?: string; source?: string; user?: string; q?: string; before?: string }
+
 export type AdminOverview = {
   totals: { users: number; withArc: number; standing: number; checkedInToday: number; checkInsToday: number; photos: number }
   users: AdminUserRow[]
@@ -187,16 +212,26 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (data.session) headers.Authorization = `Bearer ${data.session.access_token}`
   if (body) headers['Content-Type'] = 'application/json'
 
+  // The address without its query, which is what the server logs too.
+  const what = `${method} /api${path.split('?')[0]}`
+  const started = performance.now()
+  const took = () => Math.round(performance.now() - started)
   const res = await fetch(`/api${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
     // A request that hangs is reported rather than leaving the page stuck.
     signal: AbortSignal.timeout(15_000),
-  }).catch(() => {
+  }).catch((err: Error) => {
+    // The server never hears about these, so the browser has to say.
+    const timedOut = err.name === 'TimeoutError'
+    report('error', timedOut ? 'request timed out' : 'request failed', what, { ms: took(), reason: `${err.name}: ${err.message}` })
     throw new Error(OFFLINE)
   })
   const json = await res.json().catch(() => null)
+  // An answer that isn't ours came from something in between.
+  if (!res.ok && !json?.error) report('error', 'request got an unreadable answer', what, { ms: took(), status: res.status })
+  else if (took() > 5000) report('warn', 'slow request', what, { ms: took(), status: res.status })
   // The session ran out or was revoked: drop it, which sends them to log in.
   if (res.status === 401 && data.session) await supabase.auth.signOut({ scope: 'local' })
   if (!res.ok) throw new Error(json?.error ?? OFFLINE)
@@ -255,6 +290,10 @@ export const api = {
   pushTest: () => request<{ ok: true }>('POST', '/push/test'),
 
   getAdminProofs: () => request<{ proofs: AdminProof[] }>('GET', '/admin/proofs'),
+  getAdminLogs: (filter: AdminLogFilter) => {
+    const query = new URLSearchParams(Object.entries(filter).filter(([, v]) => v))
+    return request<{ logs: AdminLog[]; more: boolean }>('GET', `/admin/logs?${query}`)
+  },
   getAdminOverview: () => request<AdminOverview>('GET', `/admin/overview?today=${today()}`),
   getAdminUser: (username: string) =>
     request<AdminUser>('GET', `/admin/users/${encodeURIComponent(username)}?today=${today()}`),

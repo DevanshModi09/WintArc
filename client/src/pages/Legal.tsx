@@ -46,6 +46,7 @@ const PRIVACY: Section[] = [
     heading: 'How long we keep it',
     body: [
       'Proof photos are temporary: they may be deleted from storage a few days after they are uploaded, while the check-in they backed up stays. Do not rely on WintArc to keep your photos.',
+      'To find and fix problems, the server keeps a log of the requests made to it and of errors your browser reports: what was asked for, when, whether it worked, and the IP address and browser it came from. Log entries are deleted after 30 days, and yours are deleted with your account.',
       'Everything else is kept until you delete your account.',
     ],
   },

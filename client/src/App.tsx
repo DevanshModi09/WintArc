@@ -4,7 +4,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate 
 import { api, type User } from './api'
 import { ErrorNote, Loading, Logo } from './components/ArcParts'
 import { Layout } from './components/Layout'
-import { AdminPeople, AdminPerson, AdminUploads } from './pages/Admin'
+import { AdminLogs, AdminPeople, AdminPerson, AdminUploads } from './pages/Admin'
 import { AuthPage } from './pages/AuthPage'
 import { Board } from './pages/Board'
 import { Commitment } from './pages/Commitment'
@@ -147,6 +147,7 @@ function SignedIn() {
           <>
             <Route path="admin" element={<AdminPeople />} />
             <Route path="admin/uploads" element={<AdminUploads />} />
+            <Route path="admin/logs" element={<AdminLogs />} />
             <Route path="admin/u/:username" element={<AdminPerson />} />
           </>
         )}

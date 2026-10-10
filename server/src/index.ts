@@ -10,6 +10,7 @@ import { startProofCleanup } from "./cleanup";
 import { prisma } from "./db";
 import { env, isProduction } from "./env";
 import { errorHandler } from "./errors";
+import { logRequests, receiveReports, startLogs } from "./logs";
 import { pushRouter, startReminders } from "./push";
 import { adminRouter } from "./routes/admin";
 import { arcRouter } from "./routes/arc";
@@ -51,17 +52,7 @@ app.use(
 );
 app.use(compression());
 
-if (isProduction) {
-  app.use((req, res, next) => {
-    const started = performance.now();
-    res.on("finish", () => {
-      const ms = Math.round(performance.now() - started);
-      const path = req.originalUrl.split("?")[0];
-      console.log(JSON.stringify({ method: req.method, path, status: res.statusCode, ms }));
-    });
-    next();
-  });
-}
+app.use("/api", logRequests);
 
 app.get("/api/health", async (_req, res) => {
   try {
@@ -86,6 +77,8 @@ app.use("/api", limiter(240), (_req, res, next) => {
 });
 // Roomy enough for a profile photo sent as a base64 data URL.
 app.use("/api", express.json({ limit: "400kb" }));
+// Browsers report what went wrong for them here, signed in or not.
+app.post("/api/logs", limiter(30), receiveReports);
 app.use("/api/auth", authRouter);
 app.use("/api/public", publicRouter);
 app.use("/api/admin", requireAuth, requireProfile, adminRouter);
@@ -112,6 +105,7 @@ app.use(errorHandler);
 
 const server = app.listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${env.PORT}`);
+  startLogs();
   startProofCleanup();
   startReminders();
 });

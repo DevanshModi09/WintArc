@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { report } from '../log'
 
 // Catches a crash while rendering, so a bug shows a way out instead of a
 // blank page.
@@ -11,6 +12,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error(error, info.componentStack)
+    report('error', 'page crashed', error.message, { stack: error.stack?.slice(0, 3000), component: info.componentStack?.slice(0, 1500) })
   }
 
   render() {

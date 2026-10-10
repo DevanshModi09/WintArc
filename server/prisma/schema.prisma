@@ -202,3 +202,38 @@ model Friendship {
   @@unique([requesterId, addresseeId])
   @@index([addresseeId])
 }
+
+// One thing that happened: an API request the server answered, something a
+// browser reported (a failed upload, a request that never got through, a
+// crash), or something the server did on its own. Admins read these to work
+// out what went wrong for someone. Kept for 30 days.
+model Log {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  // "request", "client" or "server"
+  source    String
+  // "info", "warn" or "error"
+  level     String
+  // What happened, in a few words: "PUT /tracks/abc/checkin" or "photo upload failed".
+  event     String
+  message   String?
+  // Who it happened to, when they were signed in. Not a relation, so a
+  // report can be filed for someone who hasn't finished signing up; an
+  // account's logs are deleted along with it.
+  userId    String?
+  method    String?
+  path      String?
+  status    Int?
+  // How long it took.
+  ms        Int?
+  // Which address the site was opened on, and from what.
+  host      String?
+  userAgent String?
+  ip        String?
+  // Anything else worth knowing, as the reporter gave it.
+  detail    Json?
+
+  @@index([at])
+  @@index([userId, at])
+  @@index([level, at])
+}

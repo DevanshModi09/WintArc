@@ -6,6 +6,9 @@ import './index.css'
 import './device'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { startReporting } from './log'
+
+startReporting()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

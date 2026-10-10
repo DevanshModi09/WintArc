@@ -1,3 +1,4 @@
+import { report } from './log'
 import { supabase } from './supabase'
 
 // Google's own sign-in button, running on our page. Because the hand-off to
@@ -56,7 +57,10 @@ export async function renderGoogleButton(parent: HTMLElement, onError: (message:
       nonce: await sha256(nonce),
       callback: async ({ credential }) => {
         const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: credential, nonce })
-        if (error) onError(error.message)
+        if (error) {
+          report('error', 'sign-in failed', error.message, { route: 'google button' })
+          onError(error.message)
+        }
       },
     })
     id.renderButton(parent, { theme: 'filled_black', size: 'large', shape: 'rectangular', text: 'continue_with', width: Math.min(400, parent.clientWidth || 360) })

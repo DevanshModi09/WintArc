@@ -1,3 +1,4 @@
+import { report } from './log'
 import { supabase } from './supabase'
 
 const BUCKET = 'proofs'
@@ -37,8 +38,21 @@ export async function uploadProof(file: File): Promise<string> {
   const userId = data.session?.user.id
   if (!userId) throw new Error('Sign in again to upload a photo')
   const path = `${userId}/${crypto.randomUUID()}.jpg`
-  const { error } = await supabase.storage.from(BUCKET).upload(path, await shrink(file), { contentType: 'image/jpeg' })
-  if (error) throw new Error("Couldn't upload the photo. Check your connection and try again.")
+  const original = { type: file.type, bytes: file.size }
+  const started = performance.now()
+  const took = () => Math.round(performance.now() - started)
+  const photo = await shrink(file).catch((err: Error) => {
+    report('error', 'photo could not be read', err.message, { original, ms: took() })
+    throw err
+  })
+  const shrunk = took()
+  const { error } = await supabase.storage.from(BUCKET).upload(path, photo, { contentType: 'image/jpeg' })
+  const detail = { original, bytes: photo.size, shrinkMs: shrunk, uploadMs: took() - shrunk }
+  if (error) {
+    report('error', 'photo upload failed', error.message, detail)
+    throw new Error("Couldn't upload the photo. Check your connection and try again.")
+  }
+  report('info', 'photo uploaded', undefined, detail)
   return path
 }
 

@@ -28,24 +28,20 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     res.destroy();
     return;
   }
-  if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message });
-    return;
-  }
-  if (err instanceof ZodError) {
-    res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input" });
-    return;
-  }
+  // What the person was told goes in the log entry for the request too.
+  const fail = (status: number, error: string) => {
+    res.locals.logError ??= error;
+    res.status(status).json({ error });
+  };
+  if (err instanceof HttpError) return fail(err.status, err.message);
+  if (err instanceof ZodError) return fail(400, err.issues[0]?.message ?? "Invalid input");
   const known = PRISMA_ERRORS[err?.code] ?? BODY_ERRORS[err?.type];
-  if (known) {
-    res.status(known[0]).json({ error: known[1] });
-    return;
-  }
+  if (known) return fail(known[0], known[1]);
   // Express's own errors, such as a static file that doesn't exist.
-  if (err?.status >= 400 && err.status < 500) {
-    res.status(err.status).json({ error: "Not found" });
-    return;
-  }
+  if (err?.status >= 400 && err.status < 500) return fail(err.status, "Not found");
   console.error(`${req.method} ${req.originalUrl.split("?")[0]}`, err);
-  res.status(500).json({ error: "Something went wrong" });
+  // The log keeps what really went wrong; the person is told less.
+  res.locals.logError = err?.message ?? String(err);
+  res.locals.logStack = err?.stack;
+  fail(500, "Something went wrong");
 };

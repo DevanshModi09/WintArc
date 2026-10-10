@@ -1,14 +1,15 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Link, NavLink, useParams } from 'react-router-dom'
-import { api, today, type AdminOverview, type AdminProof, type AdminUser as AdminUserData } from '../api'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, NavLink, useParams, useSearchParams } from 'react-router-dom'
+import { api, today, type AdminLog, type AdminOverview, type AdminProof, type AdminUser as AdminUserData } from '../api'
 import { trackProgress } from '../arcStats'
 import { ActivityGrid, Avatar, Checkbox, ErrorNote, Loading } from '../components/ArcParts'
 import { ProofPhoto } from '../components/ProofPhoto'
 import { scheduleSummary } from '../schedule'
 import { useTitle } from '../useTitle'
 
-// The admin area: how the app is being used, every person in full, and
-// everything that's been uploaded. Only admins can open any of it. People's
+// The admin area: how the app is being used, every person in full,
+// everything that's been uploaded, and the log of everything that happened.
+// Only admins can open any of it. People's
 // daily reflections are the one thing that isn't here: the app promises those
 // are only ever shown to their author.
 
@@ -37,6 +38,9 @@ function Shell({ title, intro, children }: { title: string; intro: ReactNode; ch
           </NavLink>
           <NavLink to="/admin/uploads" className={tabClass}>
             Uploads
+          </NavLink>
+          <NavLink to="/admin/logs" className={tabClass}>
+            Logs
           </NavLink>
         </nav>
       </header>
@@ -176,6 +180,10 @@ export function AdminPerson() {
           {user.sharePublic && ' · public page on'} ·{' '}
           <Link to={`/u/${user.username}`} className="text-fg underline underline-offset-2">
             their profile
+          </Link>{' '}
+          ·{' '}
+          <Link to={`/admin/logs?user=${user.username}`} className="text-fg underline underline-offset-2">
+            their logs
           </Link>
         </>
       }
@@ -312,6 +320,195 @@ export function AdminUploads() {
             ))}
           </div>
         </>
+      )}
+    </Shell>
+  )
+}
+
+// To the second: two entries a moment apart are often the whole story.
+const exactly = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit' })
+
+const SOURCES = { request: 'request', client: 'browser', server: 'server' } as const
+const LEVEL_CLASS = { info: 'text-muted', warn: 'text-fg', error: 'text-danger' } as const
+const selectClass = 'input w-auto pr-8'
+
+// Everything else an entry carries, shown when its row is opened.
+function LogDetail({ log }: { log: AdminLog }) {
+  const facts: [string, ReactNode][] = [
+    ['When', new Date(log.at).toISOString()],
+    ['Person', log.user ? `${log.user.name} (@${log.user.username})` : log.signedIn ? 'signed in, no profile yet' : 'not signed in'],
+    ['Opened on', log.host],
+    ['Address', log.ip],
+    ['Browser', log.userAgent],
+    ...Object.entries(log.detail ?? {}).map(([key, value]): [string, ReactNode] => [
+      key,
+      typeof value === 'string' ? value : JSON.stringify(value),
+    ]),
+  ]
+  return (
+    <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 font-mono text-[13px]">
+      {facts
+        .filter(([, value]) => value !== null && value !== undefined && value !== '')
+        .map(([label, value]) => (
+          <Fragment key={label}>
+            <dt className="text-muted">{label}</dt>
+            <dd className="break-words whitespace-pre-wrap">{value}</dd>
+          </Fragment>
+        ))}
+    </dl>
+  )
+}
+
+export function AdminLogs() {
+  const [params, setParams] = useSearchParams()
+  const level = params.get('level') ?? ''
+  const source = params.get('source') ?? ''
+  const user = params.get('user') ?? ''
+  const q = params.get('q') ?? ''
+  const [typed, setTyped] = useState(q)
+  const [logs, setLogs] = useState<AdminLog[]>()
+  const [more, setMore] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [openId, setOpenId] = useState('')
+  // Only the answer to the latest question is shown.
+  const latest = useRef(0)
+
+  const set = (key: string, value: string) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    setParams(next, { replace: true })
+  }
+
+  async function load(before?: AdminLog) {
+    const id = ++latest.current
+    setLoading(true)
+    setError('')
+    try {
+      const page = await api.getAdminLogs({ level, source, user, q, before: before?.id })
+      if (id !== latest.current) return
+      setLogs((old) => (before && old ? [...old, ...page.logs] : page.logs))
+      setMore(page.more)
+    } catch (err) {
+      if (id === latest.current) setError((err as Error).message)
+    }
+    if (id === latest.current) setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+    // `load` is a fresh function every render; the filters say when it really changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level, source, user, q])
+
+  return (
+    <Shell
+      title="Logs"
+      intro="Every request to the server, everything browsers reported going wrong, and what the server did on its own. Newest first, kept for 30 days. Click an entry for the rest of it."
+    >
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          set('q', typed.trim())
+        }}
+      >
+        <select className={selectClass} aria-label="Level" value={level} onChange={(e) => set('level', e.target.value)}>
+          <option value="">Every level</option>
+          <option value="error">Errors</option>
+          <option value="warn">Warnings</option>
+          <option value="info">Info</option>
+        </select>
+        <select className={selectClass} aria-label="Source" value={source} onChange={(e) => set('source', e.target.value)}>
+          <option value="">Every source</option>
+          <option value="request">Requests</option>
+          <option value="client">Browser reports</option>
+          <option value="server">Server</option>
+        </select>
+        <input
+          className="input max-w-[320px] flex-1"
+          placeholder="Search what happened, or an address"
+          aria-label="Search the log"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+        />
+        <button className="btn-outline">Search</button>
+        <button type="button" className="btn-outline" disabled={loading} onClick={() => load()}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+        {user && (
+          <span className="label">
+            Only @{user} ·{' '}
+            <button type="button" className="text-fg underline underline-offset-2" onClick={() => set('user', '')}>
+              show everyone
+            </button>
+          </span>
+        )}
+      </form>
+
+      <ErrorNote message={error} />
+      {!logs ? (
+        !error && <Loading />
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-[14px]">
+            <thead className="label">
+              <tr className="border-b border-line">
+                {['When', 'Level', 'Source', 'What happened', 'Person', 'Status', 'Took'].map((h) => (
+                  <th key={h} className="px-4 py-2.5 font-normal whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <Fragment key={log.id}>
+                  <tr
+                    className="cursor-pointer border-b border-line align-top last:border-b-0 hover:bg-subtle"
+                    onClick={() => setOpenId(openId === log.id ? '' : log.id)}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-[13px] whitespace-nowrap">{exactly(log.at)}</td>
+                    <td className={`px-4 py-2.5 whitespace-nowrap ${LEVEL_CLASS[log.level]}`}>{log.level}</td>
+                    <td className="label px-4 py-2.5 whitespace-nowrap">{SOURCES[log.source]}</td>
+                    <td className="px-4 py-2.5">
+                      <button className="text-left font-mono text-[13px] break-all" aria-expanded={openId === log.id}>
+                        {log.event}
+                      </button>
+                      {log.message && <div className={`break-words ${log.level === 'error' ? 'text-danger' : 'text-muted'}`}>{log.message}</div>}
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      {log.user ? (
+                        <Link to={`/admin/u/${log.user.username}`} onClick={(e) => e.stopPropagation()}>
+                          @{log.user.username}
+                        </Link>
+                      ) : (
+                        <span className="label">{log.signedIn ? 'no profile' : '–'}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-[13px]">{log.status ?? '–'}</td>
+                    <td className="px-4 py-2.5 font-mono text-[13px] whitespace-nowrap">{log.ms === null ? '–' : `${log.ms}ms`}</td>
+                  </tr>
+                  {openId === log.id && (
+                    <tr className="border-b border-line bg-subtle last:border-b-0">
+                      <td colSpan={7} className="px-4 py-3">
+                        <LogDetail log={log} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+          {logs.length === 0 && <p className="label px-4 py-6">Nothing matches that.</p>}
+        </div>
+      )}
+      {more && (
+        <button className="btn-outline" disabled={loading} onClick={() => logs && load(logs[logs.length - 1])}>
+          {loading ? 'Loading…' : 'Load older'}
+        </button>
       )}
     </Shell>
   )

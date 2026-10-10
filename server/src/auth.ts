@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { prisma } from "./db";
 import { env } from "./env";
 import { HttpError } from "./errors";
@@ -17,16 +17,25 @@ export async function deleteAuthUser(id: string) {
   if (error) console.error("Could not delete the Supabase login", error);
 }
 
-// Verifies the Supabase access token sent as "Authorization: Bearer <token>".
+// Reads the Supabase access token sent as "Authorization: Bearer <token>".
+async function claimsOf(req: Request) {
+  const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+  if (!token) return null;
+  // getClaims checks the signature and expiry; it throws on a malformed token.
+  return supabase.auth
+    .getClaims(token)
+    .then(({ data, error }) => (error ? null : (data?.claims ?? null)))
+    .catch(() => null);
+}
+
+// Who sent a request, for the routes that take one from anybody.
+export async function identify(req: Request): Promise<string | null> {
+  return (await claimsOf(req))?.sub ?? null;
+}
+
 // Sign-in itself (Google) happens in the browser, straight against Supabase.
 export const requireAuth: RequestHandler = async (req, res, next) => {
-  const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
-  if (!token) throw new HttpError(401, "Not signed in");
-  // getClaims checks the signature and expiry; it throws on a malformed token.
-  const claims = await supabase.auth
-    .getClaims(token)
-    .then(({ data, error }) => (error ? null : data?.claims))
-    .catch(() => null);
+  const claims = await claimsOf(req);
   if (!claims?.sub) throw new HttpError(401, "Not signed in");
 
   const { sub, email, user_metadata } = claims;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorNote, Logo } from '../components/ArcParts'
 import { renderGoogleButton } from '../googleSignIn'
+import { report } from '../log'
 import { signInWithGoogle } from '../supabase'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -111,7 +112,10 @@ export function AuthPage() {
   async function google() {
     setError('')
     const { error } = await signInWithGoogle()
-    if (error) setError(error.message)
+    if (error) {
+      report('error', 'sign-in failed', error.message, { route: 'redirect' })
+      setError(error.message)
+    }
   }
 
   const pitch = seasonPitch()

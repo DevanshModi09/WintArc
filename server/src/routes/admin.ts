@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from "express";
+import { z } from "zod";
 import { currentArc, currentArcs } from "../arcs";
 import { parseToday } from "../dates";
 import { prisma } from "../db";
@@ -158,5 +159,47 @@ adminRouter.get("/proofs", async (_req, res) => {
       checkpoint: c.checkpoint?.title ?? null,
       user: toPublicUser(c.goal.track.arc.user),
     })),
+  });
+});
+
+const logQuery = z.object({
+  level: z.enum(["info", "warn", "error"]).optional(),
+  source: z.enum(["request", "client", "server"]).optional(),
+  // A username, to see one person's entries.
+  user: z.string().trim().toLowerCase().optional(),
+  // Matched against what happened, what was said about it, and the address.
+  q: z.string().trim().max(100).optional(),
+  // The id of the last entry already loaded.
+  before: z.string().optional(),
+});
+const LOG_PAGE = 100;
+
+// The log: every API request, everything browsers reported and what the
+// server did on its own, newest first, a page at a time.
+adminRouter.get("/logs", async (req, res) => {
+  const { level, source, user, q, before } = logQuery.parse(req.query);
+  const person = user ? await prisma.user.findUnique({ where: { username: user }, select: { id: true } }) : null;
+  if (user && !person) throw new HttpError(404, "User not found");
+
+  const contains = (field: string) => ({ [field]: { contains: q, mode: "insensitive" as const } });
+  const logs = await prisma.log.findMany({
+    where: {
+      level,
+      source,
+      userId: person?.id,
+      ...(q ? { OR: ["event", "message", "host", "ip"].map(contains) } : {}),
+    },
+    orderBy: [{ at: "desc" }, { id: "desc" }],
+    take: LOG_PAGE + 1,
+    ...(before ? { cursor: { id: before }, skip: 1 } : {}),
+  });
+  const page = logs.slice(0, LOG_PAGE);
+
+  const ids = [...new Set(page.flatMap((l) => (l.userId ? [l.userId] : [])))];
+  const people = await prisma.user.findMany({ where: { id: { in: ids } }, select: publicUserSelect });
+  const byId = new Map(people.map((p) => [p.id, toPublicUser(p)]));
+  res.json({
+    logs: page.map(({ userId, ...log }) => ({ ...log, user: (userId && byId.get(userId)) || null, signedIn: userId !== null })),
+    more: logs.length > LOG_PAGE,
   });
 });
