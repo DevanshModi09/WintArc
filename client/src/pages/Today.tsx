@@ -8,7 +8,8 @@ import { DeviceSettings } from '../components/DeviceSettings'
 import { Rise } from '../components/Motion'
 import { ProofPhoto } from '../components/ProofPhoto'
 import { uploadProof } from '../proof'
-import { scheduleSummary, weeklyPlan } from '../schedule'
+import { nextDay, scheduleSummary, weeklyPlan } from '../schedule'
+import { weekdayToday } from '../today'
 import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
 
@@ -79,6 +80,12 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
   const nextBadge = arc.badges.find((b) => !b.earned)
   const standing = survivorLabel(arc)
   const due = arc.tracks.filter((t) => t.dueToday)
+  const open = !arc.isOver && arc.startsIn === 0
+  // While the arc is running, only today's tracks get a full card, so the
+  // list matches the count in the headline. The rest sit in a short list.
+  // Today's run in the order of the clock; tracks without a start time go last.
+  const cards = open ? due.toSorted((a, b) => (a.startTime ?? '24').localeCompare(b.startTime ?? '24')) : arc.tracks
+  const resting = open ? arc.tracks.filter((t) => !t.dueToday) : []
 
   return (
     <div className="space-y-8">
@@ -148,11 +155,12 @@ export function Today({ user, onUser }: { user: User; onUser: (user: User) => vo
               </span>
             )}
           </div>
-          {arc.tracks.map((track, i) => (
+          {cards.map((track, i) => (
             <Rise key={track.id} index={i}>
-              <TrackCard track={track} open={!arc.isOver && arc.startsIn === 0} run={run} />
+              <TrackCard track={track} open={open} run={run} />
             </Rise>
           ))}
+          {resting.length > 0 && <RestingTracks tracks={resting} />}
           {!arc.isOver && (
             <Link to="/tracks" className="btn-outline">
               All checkpoints
@@ -305,6 +313,29 @@ function SharePage({ user, onUser }: { user: User; onUser: (user: User) => void 
         <p className="label">Turn this on to get a link you can post: your commitment and your live grid, for anyone to see.</p>
       )}
       <ErrorNote message={error} />
+    </section>
+  )
+}
+
+// The tracks with nothing to do today, one line each: when it's next on, and
+// its streak. Checkpoints can still be finished from the tracks page.
+function RestingTracks({ tracks }: { tracks: Track[] }) {
+  const weekday = weekdayToday()
+  return (
+    <section className="space-y-2.5 pt-2">
+      <h3 className="label">Not today</h3>
+      <div className="card divide-y divide-line">
+        {tracks.map((track) => {
+          const next = nextDay(track.days, weekday)
+          return (
+            <Link key={track.id} to="/tracks" className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-fg/5">
+              <span className="min-w-0 flex-1 truncate font-medium">{track.name}</span>
+              <span className="label">{track.complete ? 'Every checkpoint finished' : next ? `Back ${next}` : 'Not scheduled'}</span>
+              <span className="font-mono text-[13px] text-muted">{track.streak.current}d streak</span>
+            </Link>
+          )
+        })}
+      </div>
     </section>
   )
 }

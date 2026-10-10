@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { dayPlan, formatClock, formatDuration, formatTime, scheduleSummary, weeklyPlan } from './schedule'
+import { dayPlan, formatClock, formatDuration, formatTime, nextDay, scheduleSummary, weeklyPlan } from './schedule'
 
 const schedule = { days: [1, 3, 5], minutes: 90, startTime: '19:00', reminder: 10 }
 
@@ -67,4 +67,12 @@ test('formatClock', () => {
   assert.equal(formatClock(1050), '5:30 PM')
   assert.equal(formatClock(0), '12:00 AM')
   assert.equal(formatClock(24 * 60), '12:00 AM')
+})
+
+test('nextDay names the next day a track is on', () => {
+  // From Saturday.
+  assert.equal(nextDay([0, 1], 6), 'tomorrow')
+  assert.equal(nextDay([1, 3, 5], 6), 'Monday')
+  assert.equal(nextDay([5], 6), 'Friday')
+  assert.equal(nextDay([], 6), null)
 })

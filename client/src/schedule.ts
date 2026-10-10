@@ -50,6 +50,15 @@ export function scheduleSummary({ days, minutes, startTime }: Schedule) {
   return [formatDays(days), formatDuration(minutes), startTime && formatTime(startTime)].filter(Boolean).join(' · ')
 }
 
+// When a track that's off today is next on: "tomorrow", or the weekday's name.
+export function nextDay(days: number[], weekday: number) {
+  for (let ahead = 1; ahead <= 7; ahead++) {
+    const day = (weekday + ahead) % 7
+    if (days.includes(day)) return ahead === 1 ? 'tomorrow' : DAY_NAMES[day]
+  }
+  return null
+}
+
 // Planned time across every track in a week: "7h 30m".
 export function weeklyPlan(tracks: Pick<Schedule, 'days' | 'minutes'>[]) {
   const total = tracks.reduce((sum, t) => sum + t.days.length * t.minutes, 0)
