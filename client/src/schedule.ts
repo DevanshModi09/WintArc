@@ -50,6 +50,9 @@ export function scheduleSummary({ days, minutes, startTime }: Schedule) {
   return [formatDays(days), formatDuration(minutes), startTime && formatTime(startTime)].filter(Boolean).join(' · ')
 }
 
+// How many sessions a track has had: "1 session", "12 sessions".
+export const sessionCount = (total: number) => `${total} ${total === 1 ? 'session' : 'sessions'}`
+
 // When a track that's off today is next on: "tomorrow", or the weekday's name.
 export function nextDay(days: number[], weekday: number) {
   for (let ahead = 1; ahead <= 7; ahead++) {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api, today, type Arc, type ArcResponse, type Season, type Track, type User } from '../api'
 import { MILESTONES, arcPhase, arcStats, milestoneUnlocked, survivorLabel, trackProgress } from '../arcStats'
@@ -8,7 +8,7 @@ import { DeviceSettings } from '../components/DeviceSettings'
 import { Rise } from '../components/Motion'
 import { ProofPhoto } from '../components/ProofPhoto'
 import { uploadProof } from '../proof'
-import { nextDay, scheduleSummary, weeklyPlan } from '../schedule'
+import { nextDay, scheduleSummary, sessionCount, weeklyPlan } from '../schedule'
 import { weekdayToday } from '../today'
 import { useTitle } from '../useTitle'
 import { ArcSetup } from './ArcSetup'
@@ -342,23 +342,28 @@ function RestingTracks({ tracks }: { tracks: Track[] }) {
 
 // One track for today. The task is whichever checkpoint the track is up to:
 // commit with a message saying what you did and a photo of the work, and
-// finish the checkpoint when it's done to move on to the next.
+// finish the checkpoint when it's done to move on to the next. The photo can
+// be picked with the button or dropped anywhere on the card.
 function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
+  // A photo is being dragged over the card.
+  const [dragging, setDragging] = useState(false)
+  // A photo was dropped before there was a message to commit it with.
+  const [needsMessage, setNeedsMessage] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const noteInput = useRef<HTMLInputElement>(null)
   const progress = trackProgress(track)
   const { active } = track
   const next = active && track.checkpoints[active.number]
   // Replacing the photo keeps the message that's already there.
   const message = note.trim() || (track.proof?.note ?? '')
 
-  async function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    // Clear the input so picking the same file again still fires a change.
-    e.target.value = ''
-    if (!file) return
+  // The card takes a photo whenever it's showing a button that would.
+  const takesPhoto = open && (track.doneToday && track.proof ? true : track.dueToday)
+
+  async function commit(file: File) {
     setBusy(true)
     await run(async () =>
       api.checkIn(track.id, { photo: await uploadProof(file), note: message }),
@@ -367,12 +372,48 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
     setBusy(false)
   }
 
+  function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // Clear the input so picking the same file again still fires a change.
+    e.target.value = ''
+    if (file) commit(file)
+  }
+
+  const carriesFiles = (e: DragEvent) => takesPhoto && e.dataTransfer.types.includes('Files')
+
+  function dragOver(e: DragEvent) {
+    if (!carriesFiles(e)) return
+    // Without this the browser refuses the drop and opens the file instead.
+    e.preventDefault()
+    setDragging(true)
+  }
+
+  function drop(e: DragEvent) {
+    if (!carriesFiles(e)) return
+    e.preventDefault()
+    setDragging(false)
+    const file = [...e.dataTransfer.files].find((f) => f.type.startsWith('image/'))
+    if (!file || busy) return
+    if (!message) {
+      setNeedsMessage(true)
+      noteInput.current?.focus()
+      return
+    }
+    commit(file)
+  }
+
   let kicker = "Today's session"
   if (track.complete) kicker = 'Every checkpoint finished'
   else if (active) kicker = `Checkpoint ${active.number} of ${track.checkpoints.length}`
 
   return (
-    <section className="card">
+    <section
+      className={`card ${dragging ? 'outline-2 outline-accent' : ''}`}
+      onDragOver={dragOver}
+      // Moving between the card's own children fires a leave too.
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setDragging(false)}
+      onDrop={drop}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3">
         <h3 className="flex-1 font-semibold">{track.name}</h3>
         {progress !== null && (
@@ -380,6 +421,9 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
             {progress}%
           </Link>
         )}
+        <span className="font-mono text-[13px] text-muted" title="Days you've committed on this track">
+          {sessionCount(track.total)}
+        </span>
         <span className="font-mono text-[13px] text-muted">{track.streak.current}d streak</span>
         <span className="label hidden sm:inline">{scheduleSummary(track)}</span>
       </div>
@@ -402,7 +446,7 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
             </div>
             {open && (
               <button className="label hover:text-fg" disabled={busy} onClick={() => fileInput.current?.click()}>
-                {busy ? 'Uploading…' : 'Replace photo'}
+                {busy ? 'Uploading…' : dragging ? 'Drop to replace' : 'Replace photo'}
               </button>
             )}
           </div>
@@ -411,13 +455,17 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
         ) : (
           <div className="flex flex-wrap gap-2">
             <input
+              ref={noteInput}
               className="input min-w-48 flex-1"
               placeholder="Commit message: what did you do?"
               aria-label={`Commit message for today's work on ${track.name}`}
               required
               maxLength={200}
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => {
+                setNote(e.target.value)
+                setNeedsMessage(false)
+              }}
             />
             <button
               className="btn"
@@ -425,10 +473,16 @@ function TrackCard({ track, open, run }: { track: Track; open: boolean; run: Run
               title={message ? undefined : 'Write a commit message first'}
               onClick={() => fileInput.current?.click()}
             >
-              {busy ? 'Uploading…' : 'Add photo and commit'}
+              {busy ? 'Uploading…' : dragging ? 'Drop to commit' : 'Add photo and commit'}
             </button>
+            {needsMessage && !message && (
+              <p className="w-full text-[13px] text-danger" role="alert">
+                Write a commit message first, then drop the photo again.
+              </p>
+            )}
             <p className="label w-full">
-              Friends see your message. The photo stays private: it's your proof, and only you can see it.
+              Friends see your message. The photo stays private: it's your proof, and only you can see it. You can also drop
+              a photo anywhere on this card.
             </p>
           </div>
         )}

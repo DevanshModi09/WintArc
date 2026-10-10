@@ -8,7 +8,7 @@ import { CommitLog } from '../components/CommitLog'
 import { ProgressBar, Rise } from '../components/Motion'
 import { Pencil, Rename } from '../components/Rename'
 import { SchedulePicker } from '../components/SchedulePicker'
-import { scheduleSummary } from '../schedule'
+import { scheduleSummary, sessionCount } from '../schedule'
 import { useTitle } from '../useTitle'
 
 // `optimistic` is shown straight away, so ticking doesn't wait on the network.
@@ -294,6 +294,8 @@ function TrackProgress({ track, editable, run, tick, reorder }: TrackProgressPro
           {progress === null
             ? 'This track was created without checkpoints.'
             : `${done} of ${track.checkpoints.length} checkpoints done`}
+          {' · '}
+          {sessionCount(track.total)}
         </p>
       </div>
 
