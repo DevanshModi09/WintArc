@@ -10,7 +10,7 @@ export type TrackerTrack = {
   days: number[]
   minutes: number
   startTime: string | null
-  checkpoints: { title: string; done: boolean }[]
+  checkpoints: { title: string }[]
 }
 
 export type TrackerData = {
@@ -31,7 +31,8 @@ const fullDate = (date: string) =>
 const dayCount = (data: TrackerData) => Math.round((utc(data.endDate).getTime() - utc(data.startDate).getTime()) / 86_400_000) + 1
 
 // Every checkpoint of every track, with a box to tick and a line for the
-// date. What's already finished comes ticked.
+// date. Every box is empty, whatever is finished in the app: the paper is
+// ticked by hand.
 export function Checklist({ data }: { data: TrackerData }) {
   return (
     <section className="trk-sheet">
@@ -55,13 +56,13 @@ export function Checklist({ data }: { data: TrackerData }) {
             </h2>
             <span>{scheduleSummary(track)}</span>
             <span className="trk-count">
-              {track.checkpoints.filter((c) => c.done).length} / {track.checkpoints.length}
+              {track.checkpoints.length} {track.checkpoints.length === 1 ? 'checkpoint' : 'checkpoints'}
             </span>
           </div>
           <ol className="trk-checks">
             {track.checkpoints.map((c, n) => (
               <li key={n}>
-                <span className={c.done ? 'trk-box trk-box-done' : 'trk-box'}>{c.done ? '✓' : ''}</span>
+                <span className="trk-box" />
                 <span className="trk-num">{n + 1}</span>
                 <span className="trk-title">{c.title}</span>
                 <span className="trk-date-line" />

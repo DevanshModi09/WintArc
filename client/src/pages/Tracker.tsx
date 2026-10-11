@@ -57,8 +57,8 @@ export function Tracker({ user }: { user: User }) {
           </Link>
           <h1 className="mt-3 text-[32px] leading-none font-medium sm:text-[40px]">Paper tracker</h1>
           <p className="mt-2 max-w-[64ch] text-muted">
-            Every checkpoint of every track, with a box to tick and a line for the date. Print it, or choose “Save as
-            PDF” in the print window to keep a file. It's made for A4.
+            Every checkpoint of every track, with an empty box to tick by hand and a line for the date. Print it, or
+            choose “Save as PDF” in the print window to keep a file. It comes out as A4.
           </p>
         </header>
 
