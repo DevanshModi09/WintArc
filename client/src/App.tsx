@@ -14,6 +14,7 @@ import { Legal } from './pages/Legal'
 import { Onboarding } from './pages/Onboarding'
 import { Profile } from './pages/Profile'
 import { Today } from './pages/Today'
+import { Tracker } from './pages/Tracker'
 import { Tracks } from './pages/Tracks'
 import { Wrapped } from './pages/Wrapped'
 import { supabase } from './supabase'
@@ -139,6 +140,7 @@ function SignedIn() {
       <Route path="c/:username" element={<Commitment signedIn />} />
       <Route path="privacy" element={<Legal doc="privacy" />} />
       <Route path="terms" element={<Legal doc="terms" />} />
+      <Route path="tracker" element={<Tracker user={user} />} />
       <Route element={<Layout user={user} />}>
         <Route index element={<Today user={user} onUser={(next) => setMe({ ...me, user: next })} />} />
         <Route path="feed" element={<Feed />} />
@@ -151,7 +153,7 @@ function SignedIn() {
             <Route path="admin/u/:username" element={<AdminPerson />} />
           </>
         )}
-        <Route path="tracks" element={<Tracks />} />
+        <Route path="tracks" element={<Tracks admin={user.isAdmin ? user.username : null} />} />
         <Route path="wrapped" element={<Wrapped user={user} />} />
         <Route path="friends" element={<Friends />} />
         <Route path="u/:username" element={<Profile />} />

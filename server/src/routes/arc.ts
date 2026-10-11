@@ -7,9 +7,9 @@ import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
 
 const MAX_TRACKS = 8;
-const MAX_CHECKPOINTS_PER_TRACK = 30;
+export const MAX_CHECKPOINTS_PER_TRACK = 30;
 
-const checkpointTitle = z.string().trim().min(1, "A checkpoint can't be empty").max(80);
+export const checkpointTitle = z.string().trim().min(1, "A checkpoint can't be empty").max(80);
 
 // Anything left out falls back to the column default, so the same schema
 // works for partial updates without resetting fields that weren't sent.
@@ -30,10 +30,11 @@ const trackSchema = z.object({
   reminder: z.number().int().min(0).max(1440).nullable().optional(),
 });
 
-// A track's checkpoints are fixed the moment it's created: they can be ticked
-// and reordered afterwards, but never added to, reworded or removed. So the
-// whole list comes in with the track, and there has to be at least one:
-// a track with nothing to reach has nothing to work on.
+// A track's checkpoints are fixed the moment it's created: its owner can tick
+// and reorder them afterwards, but never add to, reword or remove them (only
+// an admin can, in routes/admin.ts). So the whole list comes in with the
+// track, and there has to be at least one: a track with nothing to reach has
+// nothing to work on.
 const newTrackSchema = trackSchema.extend({
   checkpoints: z
     .array(checkpointTitle, "Add at least one checkpoint to the track")

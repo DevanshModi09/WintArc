@@ -1,0 +1,156 @@
+/* The paper tracker (see Checklist.tsx). Plain CSS in real-world units,
+   black on white whatever the app looks like: on screen the sheet is a white
+   A4 page, and in print the sheet is all that's left of the page. */
+
+.trk-paper {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.3;
+  color: #111;
+  font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.trk-sheet {
+  box-sizing: border-box;
+  width: 210mm;
+  padding: 12mm;
+  background: #fff;
+}
+
+.trk-paper h1,
+.trk-paper h2 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.trk-paper h1 {
+  font-size: 20pt;
+  line-height: 1.1;
+}
+.trk-paper h2 {
+  font-size: 11pt;
+}
+.trk-foot {
+  margin: 5mm 0 0;
+  color: #666;
+  font-size: 7.5pt;
+}
+
+.trk-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8mm;
+  padding-bottom: 3mm;
+  margin-bottom: 5mm;
+  border-bottom: 0.5mm solid #111;
+}
+.trk-brand {
+  margin-bottom: 1.5mm;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.trk-meta {
+  text-align: right;
+  font-size: 8pt;
+  color: #444;
+  white-space: nowrap;
+}
+
+.trk-box {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.6mm;
+  height: 3.6mm;
+  border: 0.3mm solid #111;
+  border-radius: 0.6mm;
+  font-size: 7pt;
+  line-height: 1;
+}
+.trk-box-done {
+  background: #111;
+  color: #fff;
+}
+
+.trk-track {
+  margin-bottom: 6mm;
+}
+.trk-track-head {
+  display: flex;
+  align-items: baseline;
+  gap: 4mm;
+  padding-bottom: 1.5mm;
+  border-bottom: 0.2mm solid #111;
+  font-size: 8pt;
+  color: #444;
+  break-after: avoid;
+}
+.trk-track-head h2 {
+  flex: 1;
+  color: #111;
+}
+.trk-count {
+  font-weight: 600;
+  color: #111;
+}
+.trk-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 8mm;
+}
+.trk-checks li {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  min-height: 7mm;
+  border-bottom: 0.2mm solid #ccc;
+  break-inside: avoid;
+}
+.trk-num {
+  width: 4mm;
+  text-align: right;
+  color: #888;
+  font-size: 7.5pt;
+}
+.trk-title {
+  flex: 1;
+  min-width: 0;
+}
+.trk-date-line {
+  flex: none;
+  align-self: flex-end;
+  width: 14mm;
+  margin-bottom: 1.6mm;
+  border-bottom: 0.2mm solid #999;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .trk-hide-in-print {
+    display: none !important;
+  }
+  .trk-preview {
+    zoom: 1 !important;
+  }
+  .trk-sheet {
+    width: auto;
+    padding: 0;
+    margin: 0;
+  }
+}

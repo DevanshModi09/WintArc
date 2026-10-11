@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, NavLink, useParams, useSearchParams } from 'react-router-dom'
-import { api, today, type AdminLog, type AdminOverview, type AdminProof, type AdminUser as AdminUserData } from '../api'
+import { api, today, type AdminLog, type AdminOverview, type AdminProof, type AdminUser as AdminUserData, type Track } from '../api'
 import { trackProgress } from '../arcStats'
 import { ActivityGrid, Avatar, Checkbox, ErrorNote, Loading } from '../components/ArcParts'
 import { ProofPhoto } from '../components/ProofPhoto'
+import { Pencil, Rename } from '../components/Rename'
 import { scheduleSummary } from '../schedule'
 import { useTitle } from '../useTitle'
 
@@ -53,12 +54,13 @@ function Shell({ title, intro, children }: { title: string; intro: ReactNode; ch
 function useAdmin<T>(load: () => Promise<T>, key = '') {
   const [data, setData] = useState<T>()
   const [error, setError] = useState('')
+  const reload = () => load().then(setData, (err: Error) => setError(err.message))
   useEffect(() => {
-    load().then(setData, (err: Error) => setError(err.message))
+    reload()
     // `load` is a fresh function every render; `key` says when it really changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  return { data, placeholder: error ? <ErrorNote message={error} /> : <Loading /> }
+  return { data, reload, placeholder: error ? <ErrorNote message={error} /> : <Loading /> }
 }
 
 function Tiles({ tiles }: { tiles: { label: string; value: ReactNode }[] }) {
@@ -166,7 +168,7 @@ export function AdminPeople() {
 
 export function AdminPerson() {
   const { username = '' } = useParams()
-  const { data, placeholder } = useAdmin<AdminUserData>(() => api.getAdminUser(username), username)
+  const { data, reload, placeholder } = useAdmin<AdminUserData>(() => api.getAdminUser(username), username)
   if (!data) return <Shell title={`@${username}`} intro="Everything about this person.">{placeholder}</Shell>
 
   const { user, arc, checkIns, friends } = data
@@ -222,14 +224,7 @@ export function AdminPerson() {
                     <span className="label">{track.total} days done</span>
                     <span className="font-medium">{trackProgress(track) ?? 0}%</span>
                   </div>
-                  {track.checkpoints.length === 0 && <p className="label px-4 py-3">No checkpoints.</p>}
-                  {track.checkpoints.map((c) => (
-                    <div key={c.id} className="flex min-h-10 items-center gap-3 border-b border-line px-4 last:border-b-0">
-                      <Checkbox checked={c.done} />
-                      <span className={c.done ? 'text-muted line-through' : ''}>{c.title}</span>
-                      {track.active?.id === c.id && <span className="label ml-auto">on this now</span>}
-                    </div>
-                  ))}
+                  <TrackCheckpoints track={track} onChange={reload} />
                 </section>
               ))}
             </div>
@@ -278,6 +273,105 @@ export function AdminPerson() {
         </div>
       </section>
     </Shell>
+  )
+}
+
+const MAX_CHECKPOINTS = 30
+
+// A track's checkpoints, which an admin can add to, reword and remove. Its
+// owner can't: for them the list locked when the track was created.
+function TrackCheckpoints({ track, onChange }: { track: Track; onChange: () => Promise<void> }) {
+  const [editing, setEditing] = useState('')
+  // Removing takes a second click on the same row.
+  const [removing, setRemoving] = useState('')
+  const [title, setTitle] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function change(action: () => Promise<unknown>) {
+    setError('')
+    setBusy(true)
+    try {
+      await action()
+      await onChange()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+    setBusy(false)
+  }
+
+  function add(e: FormEvent) {
+    e.preventDefault()
+    const next = title.trim()
+    if (!next) return
+    setTitle('')
+    change(() => api.adminAddCheckpoint(track.id, next))
+  }
+
+  return (
+    <>
+      {track.checkpoints.length === 0 && <p className="label px-4 py-3">No checkpoints.</p>}
+      {track.checkpoints.map((c) => (
+        <div key={c.id} className="flex min-h-10 items-center gap-3 border-b border-line px-4">
+          <Checkbox checked={c.done} />
+          {editing === c.id ? (
+            <Rename
+              value={c.title}
+              label="Checkpoint"
+              maxLength={80}
+              onCancel={() => setEditing('')}
+              onSave={(next) => {
+                setEditing('')
+                change(() => api.adminRenameCheckpoint(c.id, next))
+              }}
+            />
+          ) : (
+            <>
+              <span className={`min-w-0 flex-1 break-words ${c.done ? 'text-muted line-through' : ''}`}>{c.title}</span>
+              {track.active?.id === c.id && <span className="label whitespace-nowrap">on this now</span>}
+              <button className="text-muted hover:text-fg" aria-label={`Reword ${c.title}`} disabled={busy} onClick={() => setEditing(c.id)}>
+                <Pencil />
+              </button>
+              {track.checkpoints.length > 1 && (
+                <button
+                  className={`text-[14px] whitespace-nowrap ${removing === c.id ? 'text-danger' : 'text-muted hover:text-fg'}`}
+                  aria-label={removing === c.id ? `Confirm removing ${c.title}` : `Remove ${c.title}`}
+                  disabled={busy}
+                  onBlur={() => setRemoving('')}
+                  onClick={() => {
+                    if (removing !== c.id) return setRemoving(c.id)
+                    setRemoving('')
+                    change(() => api.adminRemoveCheckpoint(c.id))
+                  }}
+                >
+                  {removing === c.id ? 'Remove?' : 'Remove'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+      {track.checkpoints.length < MAX_CHECKPOINTS && (
+        <form className="flex items-center gap-2 px-4 py-3" onSubmit={add}>
+          <input
+            className="input h-9"
+            placeholder="Add a checkpoint"
+            aria-label={`Add a checkpoint to ${track.name}`}
+            maxLength={80}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <button className="btn-outline h-9 px-4" disabled={busy || !title.trim()}>
+            Add
+          </button>
+        </form>
+      )}
+      {error && (
+        <div className="px-4 pb-3">
+          <ErrorNote message={error} />
+        </div>
+      )}
+    </>
   )
 }
 

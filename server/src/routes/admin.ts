@@ -6,12 +6,14 @@ import { prisma } from "../db";
 import { HttpError } from "../errors";
 import { buildArcView } from "../stats";
 import { profileSelect, publicUserSelect, toPublicUser } from "../users";
+import { checkpointTitle, MAX_CHECKPOINTS_PER_TRACK } from "./arc";
 
 // Everything here is for admins: the people who run WintArc, looking at how
 // it's being used and at what's being uploaded. An admin sees every track,
 // private ones included, and every check-in with its note and photo. The one
 // thing left out is people's daily reflections, which the app promises are
-// only ever shown to their author.
+// only ever shown to their author. An admin is also the only one who can
+// change a track's checkpoints once it exists, on anybody's track.
 
 const requireAdmin: RequestHandler = async (_req, res, next) => {
   const user = await prisma.user.findUnique({ where: { id: res.locals.userId }, select: { isAdmin: true } });
@@ -202,4 +204,43 @@ adminRouter.get("/logs", async (req, res) => {
     logs: page.map(({ userId, ...log }) => ({ ...log, user: (userId && byId.get(userId)) || null, signedIn: userId !== null })),
     more: logs.length > LOG_PAGE,
   });
+});
+
+const titleBody = z.strictObject({ title: checkpointTitle });
+
+// A new checkpoint goes on the end of the track's list. On a track that was
+// finished, this makes it due again.
+adminRouter.post("/tracks/:id/checkpoints", async (req, res) => {
+  const { title } = titleBody.parse(req.body);
+  const track = await prisma.track.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, checkpoints: { select: { position: true } } },
+  });
+  if (!track) throw new HttpError(404, "Track not found");
+  if (track.checkpoints.length >= MAX_CHECKPOINTS_PER_TRACK) {
+    throw new HttpError(400, `A track holds at most ${MAX_CHECKPOINTS_PER_TRACK} checkpoints`);
+  }
+  const position = Math.max(-1, ...track.checkpoints.map((c) => c.position)) + 1;
+  await prisma.checkpoint.create({ data: { trackId: track.id, title, position } });
+  res.status(201).json({ ok: true });
+});
+
+adminRouter.patch("/checkpoints/:id", async (req, res) => {
+  const { title } = titleBody.parse(req.body);
+  const { count } = await prisma.checkpoint.updateMany({ where: { id: req.params.id }, data: { title } });
+  if (count === 0) throw new HttpError(404, "Checkpoint not found");
+  res.json({ ok: true });
+});
+
+// The check-ins filed under a removed checkpoint stay, without one. A track
+// keeps at least one checkpoint, the same as when it's created.
+adminRouter.delete("/checkpoints/:id", async (req, res) => {
+  const checkpoint = await prisma.checkpoint.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, track: { select: { _count: { select: { checkpoints: true } } } } },
+  });
+  if (!checkpoint) throw new HttpError(404, "Checkpoint not found");
+  if (checkpoint.track._count.checkpoints <= 1) throw new HttpError(400, "A track needs at least one checkpoint");
+  await prisma.checkpoint.delete({ where: { id: checkpoint.id } });
+  res.json({ ok: true });
 });

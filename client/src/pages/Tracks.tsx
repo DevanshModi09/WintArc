@@ -30,8 +30,10 @@ const withOrder = (arc: Arc, trackId: string, ids: string[]): Arc => ({
 })
 
 // Where tracks are set up (name, schedule, visibility) and the only place
-// checkpoints are reordered. The daily check-in happens on Today.
-export function Tracks() {
+// checkpoints are reordered. The daily check-in happens on Today. `admin` is
+// the viewer's username when they're one: only an admin can change
+// checkpoints, which is done on their page in the admin area.
+export function Tracks({ admin }: { admin: string | null }) {
   // undefined = still loading
   const [arc, setArc] = useState<Arc | null>()
   const [error, setError] = useState('')
@@ -99,7 +101,20 @@ export function Tracks() {
           Each track's name, when it runs, and its checkpoints. The first unfinished checkpoint in a track is the one
           you're on, and it's what you check in against on Today. Checkpoints are fixed when a track is created, so
           here you can only finish and reorder them. You can add a track at any time, but never delete one.
+          {admin && (
+            <>
+              {' '}
+              As an admin you can{' '}
+              <Link to={`/admin/u/${admin}`} className="font-medium text-fg hover:underline">
+                change your checkpoints
+              </Link>
+              .
+            </>
+          )}
         </p>
+        <Link to="/tracker" className="btn-outline mt-4 h-9 px-4">
+          Print a paper tracker
+        </Link>
       </header>
 
       <ErrorNote message={error} />

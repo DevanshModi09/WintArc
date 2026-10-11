@@ -297,6 +297,11 @@ export const api = {
   getAdminOverview: () => request<AdminOverview>('GET', `/admin/overview?today=${today()}`),
   getAdminUser: (username: string) =>
     request<AdminUser>('GET', `/admin/users/${encodeURIComponent(username)}?today=${today()}`),
+  // Only an admin can change a track's checkpoints once it exists.
+  adminAddCheckpoint: (trackId: string, title: string) =>
+    request<{ ok: true }>('POST', `/admin/tracks/${trackId}/checkpoints`, { title }),
+  adminRenameCheckpoint: (id: string, title: string) => request<{ ok: true }>('PATCH', `/admin/checkpoints/${id}`, { title }),
+  adminRemoveCheckpoint: (id: string) => request<{ ok: true }>('DELETE', `/admin/checkpoints/${id}`),
   getFriends: () => request<Friends>('GET', `/friends?today=${today()}`),
   addFriend: (username: string) => request<RelationInfo>('POST', '/friends', { username }),
   acceptFriend: (friendshipId: string) =>

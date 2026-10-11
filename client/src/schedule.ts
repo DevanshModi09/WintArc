@@ -46,7 +46,7 @@ export function formatTime(time: string) {
 }
 
 // "Mon Wed Fri · 2h · 7:00 PM"
-export function scheduleSummary({ days, minutes, startTime }: Schedule) {
+export function scheduleSummary({ days, minutes, startTime }: Pick<Schedule, 'days' | 'minutes' | 'startTime'>) {
   return [formatDays(days), formatDuration(minutes), startTime && formatTime(startTime)].filter(Boolean).join(' · ')
 }
 
