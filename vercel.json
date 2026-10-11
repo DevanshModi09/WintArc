@@ -4,7 +4,9 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build -w client",
   "outputDirectory": "client/dist",
+  "build": { "env": { "VITE_SUPABASE_PROXY": "/supabase" } },
   "rewrites": [
+    { "source": "/supabase/:path*", "destination": "https://spbcuitwgmpdkvizaknc.supabase.co/:path*" },
     { "source": "/api/:path*", "destination": "https://13-234-179-79.sslip.io/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
